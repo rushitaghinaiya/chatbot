@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34330.188
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChatBot", "ChatBot\ChatBot.csproj", "{7A6450D7-75AE-484B-9C35-4F912E2E872B}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VRMDBCommon2023", "..\VRMDBCommon2023\VRMDBCommon2023.csproj", "{8A63AAC9-EDDB-4A63-8032-0FFB8FA55908}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7A6450D7-75AE-484B-9C35-4F912E2E872B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7A6450D7-75AE-484B-9C35-4F912E2E872B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7A6450D7-75AE-484B-9C35-4F912E2E872B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7A6450D7-75AE-484B-9C35-4F912E2E872B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A63AAC9-EDDB-4A63-8032-0FFB8FA55908}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A63AAC9-EDDB-4A63-8032-0FFB8FA55908}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A63AAC9-EDDB-4A63-8032-0FFB8FA55908}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8A63AAC9-EDDB-4A63-8032-0FFB8FA55908}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C449760D-A281-4DE5-BD2B-F909FD6BF15C}
+	EndGlobalSection
+EndGlobal
