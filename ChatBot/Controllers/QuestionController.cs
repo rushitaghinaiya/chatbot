@@ -16,6 +16,11 @@ namespace ChatBot.Controllers
             _appSetting = appSettings.Value;
             _question = question;
         }
+
+        /// <summary>
+        /// Retrieves all question groups.
+        /// </summary>
+        /// <returns>A list of question groups.</returns>
         [HttpGet]
         public IActionResult GetQuestionGroup()
         {
@@ -23,6 +28,11 @@ namespace ChatBot.Controllers
             return Ok(questions);
         }
 
+        /// <summary>
+        /// Retrieves questions by group id.
+        /// </summary>
+        /// <param name="id">The group id to filter questions.</param>
+        /// <returns>A list of questions for the specified group id.</returns>
         [HttpGet]
         public IActionResult GetQuestions(int id)
         {

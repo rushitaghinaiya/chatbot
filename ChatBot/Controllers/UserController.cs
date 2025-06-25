@@ -14,13 +14,18 @@ namespace ChatBot.Controllers
             _appSetting = appSettings.Value;
             _user = user;
         }
+
+        /// <summary>
+        /// Retrieves the list of all users.
+        /// </summary>
+        /// <returns>
+        /// An IActionResult containing the list of users.
+        /// </returns>
         [HttpGet]
         public IActionResult GetUserList()
         {
-           var userList= _user.GetUserList();
+            var userList = _user.GetUserList();
             return Ok(userList);
         }
-
-
     }
 }

@@ -20,6 +20,11 @@ namespace ChatBot.Controllers
             _userSignUp = userSignUp;
             _admin = admin;
         }
+        /// <summary>
+        /// Authenticates an admin user by mobile number and logs the login event.
+        /// </summary>
+        /// <param name="mobile">The mobile number of the admin user.</param>
+        /// <returns>Returns "Success" if login is successful, otherwise a bad request message.</returns>
         [HttpPost]
         public IActionResult AdminLogin(string mobile)
         {
@@ -29,7 +34,7 @@ namespace ChatBot.Controllers
             {
                 AdminLoginLog adminLoginLog = new AdminLoginLog();
                 adminLoginLog.AdminId = users1.Id;
-                adminLoginLog.LoginTime=DateTime.Now;
+                adminLoginLog.LoginTime = DateTime.Now;
                 adminLoginLog.Actions = "Login";
                 _userSignUp.SaveAdminLoginLog(adminLoginLog);
                 return Ok("Success");
@@ -38,8 +43,14 @@ namespace ChatBot.Controllers
                 return BadRequest("Unable to login");
         }
 
+        /// <summary>
+        /// Uploads a file and saves its metadata to the database.
+        /// </summary>
+        /// <param name="file">The file to upload.</param>
+        /// <param name="uploadedBy">The ID of the user uploading the file.</param>
+        /// <returns>Returns the uploaded file's ID, name, and status if successful, otherwise a bad request message.</returns>
         [HttpPost("upload")]
-        public async Task<IActionResult> UploadFile( IFormFile file, [FromForm] int uploadedBy)
+        public async Task<IActionResult> UploadFile(IFormFile file, [FromForm] int uploadedBy)
         {
             if (file == null || file.Length == 0)
                 return BadRequest("File is empty");
@@ -55,11 +66,8 @@ namespace ChatBot.Controllers
                 EditedAt = DateTime.Now
             };
 
-           
-           
-                _admin.SaveFileMetadataToDatabase(uploadedFile);
-                return Ok(new { uploadedFile.Id, uploadedFile.FileName, uploadedFile.Status });
-           
+            _admin.SaveFileMetadataToDatabase(uploadedFile);
+            return Ok(new { uploadedFile.Id, uploadedFile.FileName, uploadedFile.Status });
         }
     }
 }
