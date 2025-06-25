@@ -1,7 +1,12 @@
 ﻿using ChatBot.Models.Services;
 using ChatBot.Models.ViewModels;
+using static ChatBot.Models.Common.AesEncryptionHelper;
 using Dapper;
-using MySql.Data.MySqlClient;
+using Model.ViewModels;
+using MySqlConnector;
+using Org.BouncyCastle.Asn1.Cms;
+using System.Data;
+using VRMDBCommon2023;
 
 namespace ChatBot.Repository
 {
@@ -21,7 +26,7 @@ namespace ChatBot.Repository
                 MySqlTransaction transaction = connection.BeginTransaction();
                 try
                 {
-                    var insertedId = connection.QueryFirstOrDefaultAsync<int>(@"
+                    var insertedId = connection.QueryAsync<int>(@"
                 INSERT INTO uploaded_files 
                       (uploaded_by, filename, filetype, filesize, status, queries, created_at, edited_at)
                       VALUES 
@@ -33,12 +38,12 @@ namespace ChatBot.Repository
                             file.UploadedBy,
                             file.FileName,
                             file.FileType,
-                            file.FileSize,
+                            FileSize=10,
                             file.Status,
                             file.Queries,
                             file.CreatedAt,
                             file.EditedAt
-                        }, transaction: transaction).Result;
+                        }, transaction: transaction).Result.FirstOrDefault();
 
                     transaction.Commit();
                     return insertedId;

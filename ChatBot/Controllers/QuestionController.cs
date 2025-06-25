@@ -1,5 +1,6 @@
 ﻿using ChatBot.Models.Common;
 using ChatBot.Models.Services;
+using ChatBot.Models.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -20,7 +21,13 @@ namespace ChatBot.Controllers
         public IActionResult GetQuestionGroup()
         {
             var questions = _question.GetQuestionGroup();
-            return Ok(questions);
+            foreach (var questionsItem in questions)
+            {
+                var questionList = _question.GetQuestionsById(questionsItem.Id);
+                questionsItem.SubQuestion = questionList.Select(a => a.Text).ToList();
+                
+            }
+            return Ok(new { responseData = questions, status = "Success", isSuccess = true });
         }
 
         [HttpGet]

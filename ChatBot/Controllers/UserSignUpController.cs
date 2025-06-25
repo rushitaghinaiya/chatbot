@@ -1,6 +1,7 @@
 ﻿using ChatBot.Models.Common;
 using ChatBot.Models.Services;
 using ChatBot.Models.ViewModels;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Model.ViewModels;
@@ -11,6 +12,7 @@ namespace ChatBot.Controllers
 {
     [ApiController]
     [Route("chatbot/v1/[controller]/[action]")]
+    [EnableCors("allowCors")]
     public class UserSignUpController : Controller
     {
         private AppSettings _appSetting;
@@ -21,25 +23,26 @@ namespace ChatBot.Controllers
             _userSignUp = userSignUp;
         }
         [HttpPost]
-        public IActionResult SignUp(string mobile)
+        public IActionResult SignUp(UserVM userVM)
         {
             Users users1 = new Users();
-            users1 = _userSignUp.IsExistUser(mobile);
+            users1 = _userSignUp.IsExistUser(userVM.Mobile);
             if (users1 == null)
             {
                 users1 = new Users();
-                users1.Mobile = mobile;
+                users1.Email = userVM.Email;
+                users1.Mobile = userVM.Mobile;
                 users1.CreatedAt = users1.UpdatedAt = DateTime.Now;
                 users1.Id = _userSignUp.SaveUser(users1);
             }
 
             if (MobileOtp(users1))
             {
-                return Ok("OTP sent successfully");
+                return Ok(new { responseData = users1, status = "Success", isSuccess = true });
             }
 
             else
-                return BadRequest("Something wrong to send OTP");
+                return Ok(new { responseData = users1, status = "Something Went Wrong", isSuccess = false });
         }
 
         [HttpPost]
@@ -64,21 +67,21 @@ namespace ChatBot.Controllers
                         loginLogVM.LoginTime= DateTime.Now;
                         loginLogVM.CreatedAt = DateTime.Now;
                         _userSignUp.SaveLoginLog(loginLogVM);
-                        return Ok("Success");
+                        return Ok(new { responseData = user, status = "Success", isSuccess = true });
                     }
                     else
                     {
-                        return Ok("OTP expired.");
+                        return Ok(new { responseData = user, status = "OTP expired.", isSuccess = false });
                     }
                 }
                 else
                 {
-                    return Ok("Wrong OTP.");
+                    return Ok(new { responseData = user, status = "Wrong OTP.", isSuccess = false });
                 }
             }
             else
             {
-                return Ok("No OTP number found.");
+                return Ok(new { responseData = user, status = "No OTP number found.", isSuccess = false });
             }
         }
 

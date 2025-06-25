@@ -1,26 +1,31 @@
 ﻿using ChatBot.Models.Common;
 using ChatBot.Models.Services;
 using ChatBot.Models.ViewModels;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Model.ViewModels;
+using Newtonsoft.Json;
 using System.Reflection;
+using VRMDBCommon2023;
 
 namespace ChatBot.Controllers
 {
     [ApiController]
     [Route("chatbot/v1/[controller]/[action]")]
+    [EnableCors("allowCors")]
     public class AdminController : Controller
     {
         private AppSettings _appSetting;
         private readonly IUserSignUp _userSignUp;
         private readonly IAdmin _admin;
-        public AdminController(IUserSignUp userSignUp,IAdmin admin, IOptions<AppSettings> appSettings)
+        public AdminController(IUserSignUp userSignUp, IAdmin admin, IOptions<AppSettings> appSettings)
         {
             _appSetting = appSettings.Value;
             _userSignUp = userSignUp;
             _admin = admin;
         }
-        [HttpPost]
+        [HttpGet]
         public IActionResult AdminLogin(string mobile)
         {
             Users users1 = new Users();
@@ -29,17 +34,23 @@ namespace ChatBot.Controllers
             {
                 AdminLoginLog adminLoginLog = new AdminLoginLog();
                 adminLoginLog.AdminId = users1.Id;
-                adminLoginLog.LoginTime=DateTime.Now;
+                adminLoginLog.LoginTime = DateTime.Now;
                 adminLoginLog.Actions = "Login";
                 _userSignUp.SaveAdminLoginLog(adminLoginLog);
-                return Ok("Success");
+                if (MobileOtp(users1))
+                {
+                    return Ok(new { responseData = users1, status = "Success", isSuccess = true });
+                }
+
+                else
+                    return Ok(new { responseData = users1, status = "Something wrong to send OTP", isSuccess = false });
             }
             else
-                return BadRequest("Unable to login");
+                return Ok(new { responseData = users1, status = "You are not admin", isSuccess = false });
         }
 
         [HttpPost("upload")]
-        public async Task<IActionResult> UploadFile( IFormFile file, [FromForm] int uploadedBy)
+        public async Task<IActionResult> UploadFile(IFormFile file, [FromForm] int uploadedBy)
         {
             if (file == null || file.Length == 0)
                 return BadRequest("File is empty");
@@ -55,11 +66,40 @@ namespace ChatBot.Controllers
                 EditedAt = DateTime.Now
             };
 
-           
-           
-                _admin.SaveFileMetadataToDatabase(uploadedFile);
-                return Ok(new { uploadedFile.Id, uploadedFile.FileName, uploadedFile.Status });
-           
+            int fileId = _admin.SaveFileMetadataToDatabase(uploadedFile);
+            if (fileId > 0)
+            {
+                return Ok(new { status = "File uploaded successfully" });
+
+            }
+            return BadRequest(new { status = "File not uploaded" });
+
+        }
+
+        private bool MobileOtp(Users users)
+        {
+            OTPVM modelVM = new OTPVM();
+
+
+            modelVM.OtpNumber = StringUtilities.RandomString(6);
+            modelVM.CreatedAt = modelVM.CreatedAt = DateTime.Now;
+            modelVM.UserId = users.Id;
+            if (_userSignUp.SaveOTP(modelVM).Result > 0)
+            {
+
+                SendSms sendSms = new SendSms();
+                sendSms.Apikey = _appSetting.TwoFactorApiKey.ReturnString();
+                sendSms.From = _appSetting.SmsFrom.ReturnString();
+                sendSms.TemplateName = "MOBILENOVERIFICATION";
+                sendSms.Var1 = "User";// modelVM.UserName;
+                sendSms.Var2 = modelVM.OtpNumber;
+                sendSms.ToSms = users.Mobile.Trim();
+                var smsDetail = sendSms.SendMessage();
+                Dictionary<string, string> keyValue = new Dictionary<string, string>();
+                keyValue = JsonConvert.DeserializeObject<Dictionary<string, string>>(smsDetail);
+
+            }
+            return true;
         }
     }
 }
