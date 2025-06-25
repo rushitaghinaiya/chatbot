@@ -25,7 +25,12 @@ namespace ChatBot.Controllers
             _userSignUp = userSignUp;
             _admin = admin;
         }
-        [HttpGet]
+        /// <summary>
+        /// Authenticates an admin user by mobile number and logs the login event.
+        /// </summary>
+        /// <param name="mobile">The mobile number of the admin user.</param>
+        /// <returns>Returns "Success" if login is successful, otherwise a bad request message.</returns>
+        [HttpPost]
         public IActionResult AdminLogin(string mobile)
         {
             Users users1 = new Users();
@@ -49,6 +54,12 @@ namespace ChatBot.Controllers
                 return Ok(new { responseData = users1, status = "You are not admin", isSuccess = false });
         }
 
+        /// <summary>
+        /// Uploads a file and saves its metadata to the database.
+        /// </summary>
+        /// <param name="file">The file to upload.</param>
+        /// <param name="uploadedBy">The ID of the user uploading the file.</param>
+        /// <returns>Returns the uploaded file's ID, name, and status if successful, otherwise a bad request message.</returns>
         [HttpPost("upload")]
         public async Task<IActionResult> UploadFile(IFormFile file, [FromForm] int uploadedBy)
         {
