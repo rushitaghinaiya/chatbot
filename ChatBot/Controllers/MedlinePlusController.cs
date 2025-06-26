@@ -250,6 +250,9 @@ namespace ChatBot.Controllers
         /// Parses the MedlinePlus XML response and maps it to a MedlinePlusResponse object.
         /// Extracts metadata and document details from the XML structure.
         /// Returns a populated response or an empty one if parsing fails.
+        /// </summary>
+        /// <param name="xmlContent">The XML content returned from the MedlinePlus API.</param>
+        /// <returns>A MedlinePlusResponse object containing parsed metadata and documents.</returns>
         private MedlinePlusResponse ParseMedlinePlusResponse(string xmlContent)
             {
                 var response = new MedlinePlusResponse
@@ -339,9 +342,13 @@ namespace ChatBot.Controllers
                 
             }
 
-        // Cleans HTML content by removing tags and decoding entities.
-        // Handles special span elements and common HTML entities.
-        // Returns a plain text string.
+        /// <summary>
+        /// Cleans HTML content by removing tags and decoding entities.
+        /// Handles special span elements and common HTML entities.
+        /// Returns a plain text string.
+        /// </summary>
+        /// <param name="content">The HTML content to clean.</param>
+        /// <returns>A plain text string with HTML tags and entities removed.</returns>
         private string CleanHtmlContent(string content)
         {
             if (string.IsNullOrEmpty(content)) return string.Empty;
@@ -360,9 +367,13 @@ namespace ChatBot.Controllers
             return cleaned.Trim();
         }
 
-        // Extracts a document ID from a MedlinePlus URL.
-        // Uses regex to find the page name in the URL.
-        // Returns a GUID if extraction fails.
+        /// <summary>
+        /// Extracts a document ID from a MedlinePlus URL.
+        /// Uses regex to find the page name in the URL.
+        /// Returns a GUID if extraction fails.
+        /// </summary>
+        /// <param name="url">The MedlinePlus document URL.</param>
+        /// <returns>The extracted document ID or a new GUID if extraction fails.</returns>
         private string ExtractIdFromUrl(string url)
         {
             if (string.IsNullOrEmpty(url)) return Guid.NewGuid().ToString();
