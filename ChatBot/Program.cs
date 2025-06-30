@@ -24,18 +24,27 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-c.SwaggerDoc("v1", new OpenApiInfo
-{
-    Title = "Medicare Knowledge Base API",
-    Version = "v1",
-    Description = "API for managing Medicare knowledge base files and Q&A operations"
-//// Include XML comments for better documentation
-//    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
-//    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-//    if (File.Exists(xmlPath))
-//    {
-//        c.IncludeXmlComments(xmlPath);
-//    }
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Medicare Knowledge Base API",
+        Version = "v1",
+        Description = "API for managing Medicare knowledge base files and Q&A operations"
+        //// Include XML comments for better documentation
+        //    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+        //    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+        //    if (File.Exists(xmlPath))
+        //    {
+        //        c.IncludeXmlComments(xmlPath);
+        //    }
+    });
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        c.IncludeXmlComments(xmlPath);
+    }
+    ;
+
 });
 // Validate configuration on startup
 builder.Services.AddOptions<MedicareConfig>()
@@ -44,12 +53,6 @@ builder.Services.AddOptions<MedicareConfig>()
     .ValidateOnStart();
 
 // Include XML comments for better documentation
-var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
-var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-if (File.Exists(xmlPath))
-{
-    c.IncludeXmlComments(xmlPath);
-};
 
 // CORS policy
 builder.Services.AddCors(options =>
