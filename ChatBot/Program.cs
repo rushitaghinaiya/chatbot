@@ -38,15 +38,30 @@ builder.Services.AddSwaggerGen(c =>
         Title = "Medicare Knowledge Base API",
         Version = "v1",
         Description = "API for managing Medicare knowledge base files and Q&A operations"
+        //// Include XML comments for better documentation
+        //    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+        //    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+        //    if (File.Exists(xmlPath))
+        //    {
+        //        c.IncludeXmlComments(xmlPath);
+        //    }
     });
-
     var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     if (File.Exists(xmlPath))
     {
         c.IncludeXmlComments(xmlPath);
     }
+    ;
+
 });
+// Validate configuration on startup
+builder.Services.AddOptions<MedicareConfig>()
+    .Bind(builder.Configuration.GetSection(MedicareConfig.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+// Include XML comments for better documentation
 
 // CORS configuration
 builder.Services.AddCors(options =>

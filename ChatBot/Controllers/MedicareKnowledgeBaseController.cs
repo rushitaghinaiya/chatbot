@@ -37,6 +37,7 @@ namespace ChatBot.Controllers
         /// Stores a file in the Medicare knowledge base via Python API
         /// </summary>
         [HttpPost("store-file/{companyCode}")]
+        [Consumes("multipart/form-data")]
         [ProducesResponseType(typeof(ApiResponseVM<StoreFileResponse>), 200)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
@@ -47,7 +48,7 @@ namespace ChatBot.Controllers
             [FromQuery] string? language = null,
             [FromQuery] string? documentCategory = null,
             [FromQuery] string? dbType = null,
-            [FromForm] IFormFile? file = null)
+            IFormFile? file = null)
         {
             try
             {
