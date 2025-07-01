@@ -1,11 +1,11 @@
 ﻿using ChatBot.Models.Services;
 using ChatBot.Models.ViewModels;
 using Dapper;
-using MySql.Data.MySqlClient;
+using Microsoft.Data.SqlClient;
 
 namespace ChatBot.Repository
 {
-    public class UserRepository:IUser
+    public class UserRepository : IUser
     {
         private readonly string _connectionString;
         public UserRepository(string connectionString)
@@ -15,12 +15,12 @@ namespace ChatBot.Repository
 
         public List<Users> GetUserList()
         {
-            using (MySqlConnection connection = new MySqlConnection(_connectionString))
+            using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 try
                 {
                     var user = connection.QueryAsync<Users>(
-                        "SELECT id, text, category, is_active, created_at, updated_at FROM question_group"
+                        "SELECT Id, Name, Email, Mobile, Role, IsPremium, CreatedAt, UpdatedAt FROM Users"
                     ).Result.ToList();
 
                     return user;

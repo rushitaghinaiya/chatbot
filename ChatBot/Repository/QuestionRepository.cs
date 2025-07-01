@@ -3,8 +3,7 @@ using ChatBot.Models.ViewModels;
 using static ChatBot.Models.Common.AesEncryptionHelper;
 using Dapper;
 using Model.ViewModels;
-using MySqlConnector;
-using Org.BouncyCastle.Asn1.Cms;
+using Microsoft.Data.SqlClient;
 using System.Data;
 using VRMDBCommon2023;
 
@@ -17,14 +16,15 @@ namespace ChatBot.Repository
         {
             _connectionString = connectionString;
         }
+
         public List<Question> GetQuestionGroup()
         {
-            using (MySqlConnection connection = new MySqlConnection(_connectionString))
+            using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 try
                 {
                     var questions = connection.QueryAsync<Question>(
-                        "SELECT id, text, category, is_active, created_at, updated_at FROM question_group"
+                        "SELECT Id, Text, Category, IsActive, CreatedAt, UpdatedAt FROM QuestionGroup"
                     ).Result.ToList();
 
                     return questions;
@@ -35,14 +35,15 @@ namespace ChatBot.Repository
                 }
             }
         }
+
         public List<Question> GetQuestionsById(int id)
         {
-            using (MySqlConnection connection = new MySqlConnection(_connectionString))
+            using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 try
                 {
                     var questions = connection.QueryAsync<Question>(
-                        "SELECT id, groupid, text, category, is_active, created_at, updated_at FROM questions where groupid=@id",
+                        "SELECT Id, GroupId, Text, Category, IsActive, CreatedAt, UpdatedAt FROM Questions WHERE GroupId = @id",
                         param: new { id }).Result.ToList();
 
                     return questions;

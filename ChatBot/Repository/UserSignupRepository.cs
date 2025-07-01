@@ -3,8 +3,7 @@ using ChatBot.Models.ViewModels;
 using static ChatBot.Models.Common.AesEncryptionHelper;
 using Dapper;
 using Model.ViewModels;
-using MySqlConnector;
-using Org.BouncyCastle.Asn1.Cms;
+using Microsoft.Data.SqlClient;
 using System.Data;
 using VRMDBCommon2023;
 
@@ -17,19 +16,30 @@ namespace ChatBot.Repository
         {
             _connectionString = connectionString;
         }
+
         public int SaveUser(Users users)
         {
-
-            using (MySqlConnection connection = new MySqlConnection(_connectionString))
+            using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                MySqlTransaction transaction = connection.BeginTransaction();
+                SqlTransaction transaction = connection.BeginTransaction();
                 try
                 {
                     users.Mobile = Encrypt(users.Mobile);
-                    users.Id = connection.QueryAsync<int>(@"INSERT INTO users(name, password_hash,mobile,role ,is_premium ,updated_at ,created_at)
-                                                                        VALUES(name, @password_hash , @mobile , @role , @is_premium , @updated_at ,@created_at ); SELECT LAST_INSERT_ID();",
-                        new { name = users.Name, mobile = users.Mobile, role = users.Role, is_premium = users.IsPremium, password_hash = users.PasswordHash, created_at = users.CreatedAt, updated_at = users.UpdatedAt }, transaction: transaction).Result.FirstOrDefault();
+                    users.Id = connection.QueryAsync<int>(@"
+                        INSERT INTO Users(Name, PasswordHash, Mobile, Role, IsPremium, UpdatedAt, CreatedAt)
+                        VALUES(@name, @password_hash, @mobile, @role, @is_premium, @updated_at, @created_at); 
+                        SELECT CAST(SCOPE_IDENTITY() as int);",
+                        new
+                        {
+                            name = users.Name,
+                            mobile = users.Mobile,
+                            role = users.Role,
+                            is_premium = users.IsPremium,
+                            password_hash = users.PasswordHash,
+                            created_at = users.CreatedAt,
+                            updated_at = users.UpdatedAt
+                        }, transaction: transaction).Result.FirstOrDefault();
                     transaction.Commit();
                 }
                 catch (Exception)
@@ -39,20 +49,20 @@ namespace ChatBot.Repository
                 }
                 return users.Id;
             }
-            return 0;
         }
 
         public int SaveLoginLog(LoginLogVM loginLog)
         {
-
-            using (MySqlConnection connection = new MySqlConnection(_connectionString))
+            using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                MySqlTransaction transaction = connection.BeginTransaction();
+                SqlTransaction transaction = connection.BeginTransaction();
                 try
                 {
-                    loginLog.LogId = connection.QueryAsync<int>(@"INSERT INTO Login_Logs (UserId,LoginTime,Status,FailureReason,CreatedAt) 
-                        VALUES (@UserId,@LoginTime,@Status,@FailureReason,@CreatedAt);SELECT LAST_INSERT_ID();",
+                    loginLog.LogId = connection.QueryAsync<int>(@"
+                        INSERT INTO LoginLogs (UserId, LoginTime, Status, FailureReason, CreatedAt) 
+                        VALUES (@UserId, @LoginTime, @Status, @FailureReason, @CreatedAt);
+                        SELECT CAST(SCOPE_IDENTITY() as int);",
                         new
                         {
                             loginLog.UserId,
@@ -74,21 +84,21 @@ namespace ChatBot.Repository
 
         public int SaveAdminLoginLog(AdminLoginLog loginLog)
         {
-            using (MySqlConnection connection = new MySqlConnection(_connectionString))
+            using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                MySqlTransaction transaction = connection.BeginTransaction();
+                SqlTransaction transaction = connection.BeginTransaction();
                 try
                 {
                     var insertedId = connection.QueryAsync<int>(@"
-                INSERT INTO admin_login_logs (id, admin_id, login_time, actions)
-                VALUES (@Id, @AdminId, @LoginTime, @Actions);
-                SELECT LAST_INSERT_ID();",
+                        INSERT INTO AdminLoginLogs (AdminId, LoginTime, Actions)
+                        VALUES (@AdminId, @LoginTime, @Actions);
+                        SELECT CAST(SCOPE_IDENTITY() as int);",
                         new
                         {
-                            loginLog.Id,
                             loginLog.AdminId,
                             loginLog.LoginTime,
+                            loginLog.Actions
                         }, transaction: transaction).Result.FirstOrDefault();
 
                     transaction.Commit();
@@ -104,10 +114,10 @@ namespace ChatBot.Repository
 
         public bool UpdateLoginStatus(int logId, string status, string? failureReason = null)
         {
-            using (MySqlConnection connection = new MySqlConnection(_connectionString))
+            using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                MySqlTransaction transaction = connection.BeginTransaction();
+                SqlTransaction transaction = connection.BeginTransaction();
                 try
                 {
                     var rowsAffected = connection.Execute(@"
@@ -135,15 +145,14 @@ namespace ChatBot.Repository
 
         public Users IsExistUser(string mobile)
         {
-
-            using (MySqlConnection connection = new MySqlConnection(_connectionString))
+            using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 try
                 {
                     mobile = Encrypt(mobile);
                     Users user = new Users();
                     user = connection.Query<Users>(
-                        sql: "SELECT * FROM users u WHERE u.mobile=@mobile;",
+                        sql: "SELECT * FROM Users u WHERE u.Mobile = @mobile;",
                         param: new { mobile },
                         commandType: CommandType.Text
                     ).FirstOrDefault();
@@ -163,16 +172,16 @@ namespace ChatBot.Repository
         public Task<int> SaveOTP(OTPVM otpVM)
         {
             int rowsAffectedCount = 0;
-            using (MySqlConnection connection = new MySqlConnection(_connectionString))
+            using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 try
                 {
                     connection.Open();
-                    MySqlTransaction transaction = connection.BeginTransaction();
+                    SqlTransaction transaction = connection.BeginTransaction();
                     rowsAffectedCount += connection.Query<int>(
-                     @"INSERT INTO AuthenticationOtp(UserId,OtpNumber,OtpTime,CreatedAt)
-							VALUES(@UserId,@OtpNumber,@OtpTime,@CreatedAt);
-                        SELECT LAST_INSERT_ID();",
+                     @"INSERT INTO AuthenticationOtp(UserId, OtpNumber, OtpTime, CreatedAt)
+                       VALUES(@UserId, @OtpNumber, @OtpTime, @CreatedAt);
+                       SELECT CAST(SCOPE_IDENTITY() as int);",
                         commandType: CommandType.Text,
                         param: new
                         {
@@ -186,7 +195,6 @@ namespace ChatBot.Repository
                 }
                 catch (Exception)
                 {
-
                     throw;
                 }
             }
@@ -194,14 +202,16 @@ namespace ChatBot.Repository
 
         public OTPVM GetOTP(OTPVM otpVM)
         {
-            using (MySqlConnection connection = new MySqlConnection(_connectionString))
+            using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 try
                 {
-                    otpVM = connection.QueryAsync<OTPVM>("SELECT a.otpnumber,a.otptime FROM authenticationotp a WHERE a.userid=@userid ORDER BY a.id DESC LIMIT 1", param: new
-                    {
-                        userid = otpVM.UserId
-                    }).Result.FirstOrDefault();
+                    otpVM = connection.QueryAsync<OTPVM>(@"
+                        SELECT TOP 1 OtpNumber, OtpTime 
+                        FROM AuthenticationOtp 
+                        WHERE UserId = @userid 
+                        ORDER BY Id DESC",
+                        param: new { userid = otpVM.UserId }).Result.FirstOrDefault();
                     return otpVM;
                 }
                 catch (Exception)

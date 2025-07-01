@@ -3,8 +3,7 @@ using ChatBot.Models.ViewModels;
 using static ChatBot.Models.Common.AesEncryptionHelper;
 using Dapper;
 using Model.ViewModels;
-using MySqlConnector;
-using Org.BouncyCastle.Asn1.Cms;
+using Microsoft.Data.SqlClient;
 using System.Data;
 using VRMDBCommon2023;
 
@@ -20,25 +19,24 @@ namespace ChatBot.Repository
 
         public int SaveFileMetadataToDatabase(UploadFile file)
         {
-            using (MySqlConnection connection = new MySqlConnection(_connectionString))
+            using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                MySqlTransaction transaction = connection.BeginTransaction();
+                SqlTransaction transaction = connection.BeginTransaction();
                 try
                 {
                     var insertedId = connection.QueryAsync<int>(@"
-                INSERT INTO uploaded_files 
-                      (uploaded_by, filename, filetype, filesize, status, queries, created_at, edited_at)
-                      VALUES 
-                      (@UploadedBy, @FileName, @FileType, @FileSize, @Status, @Queries, @CreatedAt, @EditedAt);
-      
-                SELECT LAST_INSERT_ID();",
+                        INSERT INTO UploadedFiles 
+                        (UploadedBy, FileName, FileType, FileSize, Status, Queries, CreatedAt, EditedAt)
+                        VALUES 
+                        (@UploadedBy, @FileName, @FileType, @FileSize, @Status, @Queries, @CreatedAt, @EditedAt);
+                        SELECT CAST(SCOPE_IDENTITY() as int);",
                         new
                         {
                             file.UploadedBy,
                             file.FileName,
                             file.FileType,
-                            FileSize=10,
+                            FileSize = file.FileSize ?? 10,
                             file.Status,
                             file.Queries,
                             file.CreatedAt,
@@ -57,4 +55,3 @@ namespace ChatBot.Repository
         }
     }
 }
-

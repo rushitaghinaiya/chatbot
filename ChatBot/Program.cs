@@ -12,10 +12,13 @@ ConfigurationManager configuration = builder.Configuration;
 // Add services to the container.
 builder.Services.AddHttpClient<MedlinePlusController>();
 
+// Register repositories with SQL Server connection string
 builder.Services.AddTransient<IUserSignUp>(s => new UserSignupRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IQuestion>(s => new QuestionRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IAdmin>(s => new AdminRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IMedicine>(s => new MedicineRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
+builder.Services.AddTransient<IUser>(s => new UserRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
+builder.Services.AddTransient<IExceptionLog>(s => new ExceptionLogRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 
 builder.Services.Configure<AppSettings>(configuration.GetSection("ApplicationSettings"));
 builder.Services.Configure<MedicareConfig>(
@@ -35,33 +38,19 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "Medicare Knowledge Base API",
+        Title = "ChatBot API",
         Version = "v1",
-        Description = "API for managing Medicare knowledge base files and Q&A operations"
-        //// Include XML comments for better documentation
-        //    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
-        //    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-        //    if (File.Exists(xmlPath))
-        //    {
-        //        c.IncludeXmlComments(xmlPath);
-        //    }
+        Description = "API for ChatBot application with SQL Server backend"
     });
+
+    // Include XML comments for better documentation
     var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     if (File.Exists(xmlPath))
     {
         c.IncludeXmlComments(xmlPath);
     }
-    ;
-
 });
-// Validate configuration on startup
-builder.Services.AddOptions<MedicareConfig>()
-    .Bind(builder.Configuration.GetSection(MedicareConfig.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-// Include XML comments for better documentation
 
 // CORS configuration
 builder.Services.AddCors(options =>
