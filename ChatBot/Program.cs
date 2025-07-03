@@ -5,9 +5,15 @@ using ChatBot.Models.Services;
 using ChatBot.Repository;
 using Microsoft.OpenApi.Models;
 using VRMDBCommon2023;
+using Serilog;
+
 
 var builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
+// Configure Serilog
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.File("Logs/log.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
 
 // Add services to the container.
 builder.Services.AddHttpClient<MedlinePlusController>();
@@ -21,11 +27,12 @@ builder.Services.Configure<AppSettings>(configuration.GetSection("ApplicationSet
 builder.Services.Configure<MedicareConfig>(
     builder.Configuration.GetSection(MedicareConfig.SectionName));
 
-// Validate configuration on startup
-builder.Services.AddOptions<MedicareConfig>()
+// Remove the using alias and call ValidateOnStart directly
+
+var medicareConfigOptions = builder.Services.AddOptions<MedicareConfig>()
     .Bind(builder.Configuration.GetSection(MedicareConfig.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
+    .ValidateDataAnnotations();
+builder.Services.AddSingleton(medicareConfigOptions);
 
 builder.Services.AddControllers();
 
@@ -55,11 +62,6 @@ builder.Services.AddSwaggerGen(c =>
     ;
 
 });
-// Validate configuration on startup
-builder.Services.AddOptions<MedicareConfig>()
-    .Bind(builder.Configuration.GetSection(MedicareConfig.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
 
 // Include XML comments for better documentation
 
@@ -73,6 +75,7 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader();
     });
 });
+builder.Host.UseSerilog();  // Integrate Serilog into Host
 
 var app = builder.Build();
 
@@ -87,4 +90,10 @@ app.UseHttpsRedirection();
 app.UseCors("allowCors");
 app.UseAuthorization();
 app.MapControllers();
+// Basic route for testing logging
+app.MapGet("/", () =>
+{
+    Log.Information("Home page visited at {Time}", DateTime.Now);
+    return "Hello, Serilog Logging!";
+});
 app.Run();

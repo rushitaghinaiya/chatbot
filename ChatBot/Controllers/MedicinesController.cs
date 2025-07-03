@@ -19,6 +19,14 @@ namespace ChatBot.Controllers
             _logger = logger;
         }
 
+        /// <summary>
+        /// Searches medicines by name with pagination and optional discontinued filter.
+        /// </summary>
+        /// <param name="name">Medicine name to search for.</param>
+        /// <param name="page">Page number for pagination.</param>
+        /// <param name="pageSize">Number of items per page.</param>
+        /// <param name="includeDiscontinued">Include discontinued medicines.</param>
+        /// <returns>List of matching medicines.</returns>
         // GET: api/medicines/search?name=paracetamol&page=1&pageSize=10
         [HttpGet("search")]
         public async Task<ActionResult<List<MedicineSearchVM>>> SearchMedicines(
@@ -27,75 +35,67 @@ namespace ChatBot.Controllers
             [FromQuery] int pageSize = 10,
             [FromQuery] bool includeDiscontinued = false)
         {
-            try
+            _logger.LogInformation("Searching medicines with name: {Name}, page: {Page}, pageSize: {PageSize}, includeDiscontinued: {IncludeDiscontinued}", name, page, pageSize, includeDiscontinued);
+
+            if (string.IsNullOrWhiteSpace(name))
             {
-                if (string.IsNullOrWhiteSpace(name))
-                {
-                    return StatusCode(400,"Medicine name is required for search");
-                }
-
-                if (page < 1) page = 1;
-                if (pageSize < 1 || pageSize > 100) pageSize = 10;
-
-                var result = await _medicine.SearchMedicinesAsync(name.Trim(), page, pageSize, includeDiscontinued);
-
-                return Ok(result.Items);
+                return StatusCode(400, "Medicine name is required for search");
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error searching medicines with name: {Name}", name);
-                return StatusCode(500,"An error occurred while searching medicines");
-            }
+
+            if (page < 1) page = 1;
+            if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
+            var result = await _medicine.SearchMedicinesAsync(name.Trim(), page, pageSize, includeDiscontinued);
+
+            return Ok(result.Items);
         }
 
+        /// <summary>
+        /// Gets a medicine by its unique ID.
+        /// </summary>
+        /// <param name="id">Medicine ID.</param>
+        /// <returns>Medicine details if found.</returns>
         // GET: api/medicines/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<MedicineSearchVM>> GetMedicineById(int id)
         {
-            try
+            _logger.LogInformation("Getting medicine with ID: {Id}", id);
+
+            if (id <= 0)
             {
-                if (id <= 0)
-                {
-                    return StatusCode(400, "Invalid medicine ID");
-                }
-
-                var medicine = await _medicine.GetMedicineByIdAsync(id);
-
-                if (medicine == null)
-                {
-                    return StatusCode(404,"Medicine not found");
-                }
-
-                return Ok(medicine);
+                return StatusCode(400, "Invalid medicine ID");
             }
-            catch (Exception ex)
+
+            var medicine = await _medicine.GetMedicineByIdAsync(id);
+
+            if (medicine == null)
             {
-                _logger.LogError(ex, "Error getting medicine with ID: {Id}", id);
-                return StatusCode(500,"An error occurred while retrieving medicine");
+                return StatusCode(404, "Medicine not found");
             }
+
+            return Ok(medicine);
         }
 
+        /// <summary>
+        /// Gets medicines by exact name match.
+        /// </summary>
+        /// <param name="name">Exact medicine name.</param>
+        /// <returns>List of medicines with the exact name.</returns>
         // GET: api/medicines/exact?name=Paracetamol
         [HttpGet("exact")]
         public async Task<ActionResult<List<MedicineSearchVM>>> GetMedicinesByExactName(
             [FromQuery] string name)
         {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(name))
-                {
-                    return StatusCode(400,"Medicine name is required");
-                }
+            _logger.LogInformation("Getting medicines with exact name: {Name}", name);
 
-                var medicines = await _medicine.GetMedicinesByExactNameAsync(name.Trim());
-
-                return Ok(medicines);
-            }
-            catch (Exception ex)
+            if (string.IsNullOrWhiteSpace(name))
             {
-                _logger.LogError(ex, "Error getting medicines with exact name: {Name}", name);
-                return StatusCode(500,"An error occurred while retrieving medicines");
+                return StatusCode(400, "Medicine name is required");
             }
+
+            var medicines = await _medicine.GetMedicinesByExactNameAsync(name.Trim());
+
+            return Ok(medicines);
         }
     }
 }

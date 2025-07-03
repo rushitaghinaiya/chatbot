@@ -7,12 +7,15 @@ namespace ChatBot.Controllers
 {
     public class UserController : Controller
     {
-        private AppSettings _appSetting;
+        private readonly AppSettings _appSetting;
         private readonly IUser _user;
-        public UserController(IUser user, IOptions<AppSettings> appSettings)
+        private readonly ILogger<UserController> _logger;
+
+        public UserController(IUser user, IOptions<AppSettings> appSettings, ILogger<UserController> logger)
         {
             _appSetting = appSettings.Value;
             _user = user;
+            _logger = logger;
         }
 
         /// <summary>
@@ -24,7 +27,9 @@ namespace ChatBot.Controllers
         [HttpGet]
         public IActionResult GetUserList()
         {
+            _logger.LogInformation("GetUserList called.");
             var userList = _user.GetUserList();
+            _logger.LogInformation("GetUserList returned {Count} users.", userList.Count);
             return Ok(userList);
         }
     }

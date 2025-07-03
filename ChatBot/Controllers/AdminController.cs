@@ -1,4 +1,5 @@
-﻿using ChatBot.Models.Common;
+﻿using Serilog;
+using ChatBot.Models.Common;
 using ChatBot.Models.Services;
 using ChatBot.Models.ViewModels;
 using Microsoft.AspNetCore.Cors;
@@ -33,6 +34,7 @@ namespace ChatBot.Controllers
         [HttpPost]
         public IActionResult AdminLogin(string mobile)
         {
+            Log.Information("AdminLogin endpoint called at {Time} by {mobile}", DateTime.Now, mobile);
             Users users1 = new Users();
             users1 = _userSignUp.IsExistUser(mobile);
             if (users1.Role == "admin")
@@ -63,8 +65,13 @@ namespace ChatBot.Controllers
         [HttpPost("upload")]
         public async Task<IActionResult> UploadFile(IFormFile file, [FromForm] int uploadedBy)
         {
+            Log.Information("UploadFile endpoint called at {Time} by {UploadedBy}", DateTime.Now, uploadedBy);
+
             if (file == null || file.Length == 0)
+            {
+                Log.Warning("File is empty. UploadedBy: {UploadedBy}", uploadedBy);
                 return BadRequest("File is empty");
+            }
 
             var uploadedFile = new UploadFile()
             {
@@ -77,39 +84,62 @@ namespace ChatBot.Controllers
                 EditedAt = DateTime.Now
             };
 
+            Log.Debug("Prepared UploadFile metadata: {@UploadFile}", uploadedFile);
+
             int fileId = _admin.SaveFileMetadataToDatabase(uploadedFile);
+            Log.Debug("SaveFileMetadataToDatabase returned fileId: {FileId}", fileId);
+
             if (fileId > 0)
             {
+                Log.Information("File uploaded successfully. FileId: {FileId}, UploadedBy: {UploadedBy}", fileId, uploadedBy);
                 return Ok(new { status = "File uploaded successfully" });
-
             }
-            return BadRequest(new { status = "File not uploaded" });
-
+            else
+            {
+                Log.Warning("File not uploaded. UploadedBy: {UploadedBy}", uploadedBy);
+                return BadRequest(new { status = "File not uploaded" });
+            }
         }
 
         private bool MobileOtp(Users users)
         {
+            Log.Information("MobileOtp called for UserId: {UserId}, Mobile: {Mobile}", users.Id, users.Mobile);
+
             OTPVM modelVM = new OTPVM();
-
-
             modelVM.OtpNumber = StringUtilities.RandomString(6);
-            modelVM.CreatedAt = modelVM.CreatedAt = DateTime.Now;
+            modelVM.CreatedAt = DateTime.Now;
             modelVM.UserId = users.Id;
-            if (_userSignUp.SaveOTP(modelVM).Result > 0)
+
+            Log.Debug("Generated OTP: {OtpNumber} for UserId: {UserId}", modelVM.OtpNumber, users.Id);
+
+            var saveOtpResult = _userSignUp.SaveOTP(modelVM).Result;
+            Log.Debug("SaveOTP result: {SaveOtpResult} for UserId: {UserId}", saveOtpResult, users.Id);
+
+            if (saveOtpResult > 0)
             {
+                SendSms sendSms = new SendSms
+                {
+                    Apikey = _appSetting.TwoFactorApiKey.ReturnString(),
+                    From = _appSetting.SmsFrom.ReturnString(),
+                    TemplateName = "MOBILENOVERIFICATION",
+                    Var1 = "User",
+                    Var2 = modelVM.OtpNumber,
+                    ToSms = users.Mobile?.Trim()
+                };
 
-                SendSms sendSms = new SendSms();
-                sendSms.Apikey = _appSetting.TwoFactorApiKey.ReturnString();
-                sendSms.From = _appSetting.SmsFrom.ReturnString();
-                sendSms.TemplateName = "MOBILENOVERIFICATION";
-                sendSms.Var1 = "User";// modelVM.UserName;
-                sendSms.Var2 = modelVM.OtpNumber;
-                sendSms.ToSms = users.Mobile.Trim();
+                Log.Information("Sending OTP SMS to: {ToSms} for UserId: {UserId}", sendSms.ToSms, users.Id);
+
                 var smsDetail = sendSms.SendMessage();
-                Dictionary<string, string> keyValue = new Dictionary<string, string>();
-                keyValue = JsonConvert.DeserializeObject<Dictionary<string, string>>(smsDetail);
+                Log.Debug("SMS send response: {SmsDetail} for UserId: {UserId}", smsDetail, users.Id);
 
+                Dictionary<string, string> keyValue = JsonConvert.DeserializeObject<Dictionary<string, string>>(smsDetail);
+                Log.Debug("Deserialized SMS response: {@KeyValue} for UserId: {UserId}", keyValue, users.Id);
             }
+            else
+            {
+                Log.Warning("Failed to save OTP for UserId: {UserId}", users.Id);
+            }
+
             return true;
         }
     }
