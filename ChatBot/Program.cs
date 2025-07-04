@@ -66,11 +66,13 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
+// Always enable Swagger
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ChatBot API V1");
+    c.RoutePrefix = "swagger"; // This makes Swagger available at /swagger
+});
 
 app.UseHttpsRedirection();
 app.UseCors("allowCors");
