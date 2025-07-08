@@ -75,15 +75,16 @@
             var finalDbType = dbType ?? _config.DbType;
 
             var pythonUrl = $"{_config.PythonApiBaseUrl}/api/v1/medicare-knowledgebase/store-file/{companyCode}";
-            pythonUrl += $"?kb_name={Uri.EscapeDataString(finalKbName)}";
+            if (!string.IsNullOrEmpty(ytUrl))
+            {
+                pythonUrl += $"?yt_url={Uri.EscapeDataString(ytUrl)}";
+            }
+            pythonUrl += $"&kb_name={Uri.EscapeDataString(finalKbName)}";
             pythonUrl += $"&language={Uri.EscapeDataString(finalLanguage)}";
             pythonUrl += $"&document_category={Uri.EscapeDataString(documentCategory)}";
             pythonUrl += $"&db_type={Uri.EscapeDataString(finalDbType)}";
 
-            if (!string.IsNullOrEmpty(ytUrl))
-            {
-                pythonUrl += $"&yt_url={Uri.EscapeDataString(ytUrl)}";
-            }
+            
 
             using var formData = new MultipartFormDataContent();
             if (file != null)
@@ -127,6 +128,7 @@
         // Handles Q&A requests for Medicare knowledge base files.
         // Validates input and proxies the question to the Python API.
         // Returns the answer from the knowledge base.
+        
         [HttpPost("file-qna/{companyCode}")]
         [ProducesResponseType(typeof(ApiResponseVM<QnAResponse>), 200)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
@@ -168,12 +170,12 @@
             pythonUrl += $"?question={Uri.EscapeDataString(question)}";
             pythonUrl += $"&kb_name={Uri.EscapeDataString(finalKbName)}";
             pythonUrl += $"&language={Uri.EscapeDataString(finalLanguage)}";
-            pythonUrl += $"&db_type={Uri.EscapeDataString(finalDbType)}";
 
             if (!string.IsNullOrEmpty(documentCategory))
             {
                 pythonUrl += $"&document_category={Uri.EscapeDataString(documentCategory)}";
             }
+            pythonUrl += $"&db_type={Uri.EscapeDataString(finalDbType)}";
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_config.TimeoutSeconds));
 
@@ -182,18 +184,7 @@
             var response = await _httpClient.PostAsync(pythonUrl, null, cts.Token);
             var responseContent = await response.Content.ReadAsStringAsync();
 
-            if (response.IsSuccessStatusCode)
-            {
-                _logger.LogInformation("Python API Q&A call successful");
-
-                var pythonResponse = JsonSerializer.Deserialize<ApiResponseVM<QnAResponse>>(responseContent, _jsonOptions);
-                return Ok(pythonResponse ?? new ApiResponseVM<QnAResponse>
-                {
-                    Success = false,
-                    Message = "Invalid response from Python API",
-                });
-            }
-            else
+            if (!response.IsSuccessStatusCode)
             {
                 _logger.LogError("Python API Q&A call failed. Status: {StatusCode}, Response: {Response}",
                     response.StatusCode, responseContent);
@@ -204,7 +195,37 @@
                     Message = $"Python API call failed with status {response.StatusCode}",
                 });
             }
+
+            if (string.IsNullOrWhiteSpace(responseContent) || responseContent.Trim() == "{}")
+            {
+                _logger.LogWarning("Python API returned empty response.");
+                return Ok(new ApiResponseVM<QnAResponse>
+                {
+                    Success = false,
+                    Message = "Empty response from Python API"
+                });
+            }
+
+            var pythonResponse = JsonSerializer.Deserialize<QnAResponse>(responseContent, _jsonOptions);
+            if (pythonResponse == null || string.IsNullOrWhiteSpace(pythonResponse.Answer))
+            {
+                _logger.LogWarning("Deserialization returned null or missing fields.");
+                return Ok(new ApiResponseVM<QnAResponse>
+                {
+                    Success = false,
+                    Message = "Invalid or incomplete response from Python API"
+                });
+            }
+
+            _logger.LogInformation("Python API Q&A call successful.");
+            return Ok(new ApiResponseVM<QnAResponse>
+            {
+                Success = true,
+                Data = pythonResponse,
+                Message = "Success"
+            });
         }
+
 
         // Health check endpoint for the Medicare knowledge base API.
         // Returns service status and configuration details.
