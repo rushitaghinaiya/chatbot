@@ -283,87 +283,68 @@ namespace ChatBot.Controllers
 
             _logger.LogInformation("Calling Python API: {PythonUrl}", pythonUrl);
 
+
+
+            var response = await _httpClient.GetAsync(pythonUrl, cts.Token);
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
             {
-                _logger.LogInformation("Received knowledge base list request for company: {CompanyCode}", companyCode);
+                _logger.LogInformation("Python API knowledge base list call successful");
 
-                if (string.IsNullOrEmpty(companyCode) || companyCode != _config.CompanyCode)
+                if (string.IsNullOrWhiteSpace(responseContent) || responseContent.Trim() == "{}")
                 {
-                    return BadRequest(new ApiResponseVM<object>
-                    {
-                        Success = false,
-                        Message = $"Invalid company code. Expected: {_config.CompanyCode}",
-                    });
-                }
-
-                var finalDbType = dbType ?? _config.DbType;
-
-                var pythonUrl = $"{_config.PythonApiBaseUrl}/api/v1/medicare-knowledgebase/kb-list/{companyCode}";
-                pythonUrl += $"?db_type={Uri.EscapeDataString(finalDbType)}";
-
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_config.TimeoutSeconds));
-
-                _logger.LogInformation("Calling Python API: {PythonUrl}", pythonUrl);
-
-                var response = await _httpClient.GetAsync(pythonUrl, cts.Token);
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                if (response.IsSuccessStatusCode)
-                {
-                    _logger.LogInformation("Python API knowledge base list call successful");
-
-                    if (string.IsNullOrWhiteSpace(responseContent) || responseContent.Trim() == "{}")
-                    {
-                        _logger.LogWarning("Python API returned empty response.");
-                        return Ok(new ApiResponseVM<KnowledgeBaseListResponse>
-                        {
-                            Success = false,
-                            Message = "Empty response from Python API"
-                        });
-                    }
-
-                    var pythonResponse = JsonSerializer.Deserialize<KnowledgeBaseListResponse>(responseContent, _jsonOptions);
-                    if (pythonResponse == null)
-                    {
-                        _logger.LogWarning("Deserialization returned null.");
-                        return Ok(new ApiResponseVM<KnowledgeBaseListResponse>
-                        {
-                            Success = false,
-                            Message = "Invalid response from Python API"
-                        });
-                    }
-
-                    // Check if the Python API response indicates success
-                    if (pythonResponse.StatusCode != 200 || pythonResponse.Status != "success")
-                    {
-                        _logger.LogWarning("Python API returned unsuccessful response. Status: {Status}, StatusCode: {StatusCode}",
-                            pythonResponse.Status, pythonResponse.StatusCode);
-                        return Ok(new ApiResponseVM<KnowledgeBaseListResponse>
-                        {
-                            Success = false,
-                            Message = $"Python API returned: {pythonResponse.Status}",
-                            Data = pythonResponse
-                        });
-                    }
-
+                    _logger.LogWarning("Python API returned empty response.");
                     return Ok(new ApiResponseVM<KnowledgeBaseListResponse>
                     {
-                        Success = true,
-                        Data = pythonResponse,
-                        Message = "Success"
+                        Success = false,
+                        Message = "Empty response from Python API"
                     });
                 }
-                else
-                {
-                    _logger.LogError("Python API knowledge base list call failed. Status: {StatusCode}, Response: {Response}",
-                        response.StatusCode, responseContent);
 
-                    return BadRequest(new ApiResponseVM<object>
+                var pythonResponse = JsonSerializer.Deserialize<KnowledgeBaseListResponse>(responseContent, _jsonOptions);
+                if (pythonResponse == null)
+                {
+                    _logger.LogWarning("Deserialization returned null.");
+                    return Ok(new ApiResponseVM<KnowledgeBaseListResponse>
                     {
                         Success = false,
-                        Message = $"Python API call failed with status {response.StatusCode}",
+                        Message = "Invalid response from Python API"
                     });
                 }
+
+                // Check if the Python API response indicates success
+                if (pythonResponse.StatusCode != 200 || pythonResponse.Status != "success")
+                {
+                    _logger.LogWarning("Python API returned unsuccessful response. Status: {Status}, StatusCode: {StatusCode}",
+                        pythonResponse.Status, pythonResponse.StatusCode);
+                    return Ok(new ApiResponseVM<KnowledgeBaseListResponse>
+                    {
+                        Success = false,
+                        Message = $"Python API returned: {pythonResponse.Status}",
+                        Data = pythonResponse
+                    });
+                }
+
+                return Ok(new ApiResponseVM<KnowledgeBaseListResponse>
+                {
+                    Success = true,
+                    Data = pythonResponse,
+                    Message = "Success"
+                });
             }
+            else
+            {
+                _logger.LogError("Python API knowledge base list call failed. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, responseContent);
+
+                return BadRequest(new ApiResponseVM<object>
+                {
+                    Success = false,
+                    Message = $"Python API call failed with status {response.StatusCode}",
+                });
+            }
+
         }
 
         // Handles file deletion requests for Medicare knowledge base.
