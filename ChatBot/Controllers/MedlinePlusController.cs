@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using System.Text;
+using System.Diagnostics;
 
 namespace ChatBot.Controllers
 {
@@ -662,5 +663,34 @@ namespace ChatBot.Controllers
             var match = Regex.Match(url, @"medlineplus\.gov/([^.]+)\.html");
             return match.Success ? match.Groups[1].Value : Guid.NewGuid().ToString();
         }
+        [HttpGet("OpenAI")]
+        public async Task<IActionResult> RunPythonScriptAsync([FromQuery] string query, [FromQuery] string category, [FromQuery] int maxResults)
+        {
+            var scriptPath = @"C:\Users\DELL\Downloads\openai_fallback_response.py"; // Use absolute path
+            var args = $"{query} \"{category}\" {maxResults}";
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = "python",
+                Arguments = $"\"{scriptPath}\" {args}",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var process = new Process { StartInfo = psi };
+            process.Start();
+
+            var output = await process.StandardOutput.ReadToEndAsync();
+            var error = await process.StandardError.ReadToEndAsync();
+            process.WaitForExit();
+
+            if (process.ExitCode != 0)
+                return StatusCode(500, $"Python script error: {error}");
+
+            return Content(output, "application/json");
+        }
+
     }
 }
