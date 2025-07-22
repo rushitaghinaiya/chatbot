@@ -24,21 +24,21 @@ namespace ChatBot.Repository
             _userService = userService;
         }
 
-        public AuthenticationModel Authenticate(int userId )
+        public AuthenticationModel Authenticate(Users users)
         {
             AuthenticationModel response = new AuthenticationModel();
-            if (userId>0)
+            if (users.Id > 0)
             {
 
-                var userDetail = _userService.GetUserList().Where(a=>a.Id==userId).FirstOrDefault();
+                var userDetail = _userService.GetUserList().Where(a => a.Id == users.Id).FirstOrDefault();
                 if (userDetail != null)
                 {
-                    string jwtToken = GenerateAccessToken(userDetail);
+                    string jwtToken = GenerateAccessToken(users);
                     response.UserName = userDetail.Name;
                     response.Token = jwtToken;
                     response.Email = userDetail.Email;
                     response.IsAuthenticated = true;
-                    var refreshToken = _userService.GetRefreshTokenByUserId(userId);
+                    var refreshToken = _userService.GetRefreshTokenByUserId(users.Id);
 
 
                     if (refreshToken.Any(a => a.IsActive))
@@ -50,10 +50,10 @@ namespace ChatBot.Repository
                     else
                     {
                         var newrefreshToken = CreateRefreshToken();
-                        newrefreshToken.JWTToken= jwtToken;
+                        newrefreshToken.JWTToken = jwtToken;
                         response.RefreshToken = newrefreshToken.Token;
                         response.RefreshTokenExpiration = newrefreshToken.Expires;
-                        newrefreshToken.UserId = userId;
+                        newrefreshToken.UserId = users.Id;
                         _userService.SaveRefreshToken(newrefreshToken);
                     }
                     RefreshToken refreshToken1 = new RefreshToken();
@@ -79,36 +79,32 @@ namespace ChatBot.Repository
         {
             try
             {
+
+                //create claims details based on the user information
+                var claims = new List<Claim>
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, _jwtConfig.Subject),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim(JwtRegisteredClaimNames.Iat, DateTime.UtcNow.ToString()),
+                CreateClaim("UserId", user.Id.ToString()),
+                CreateClaim("UserName", user.Name),
+                CreateClaim("ContactNo", user.Mobile),
+            };
+
+
+
+
                 var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtConfig.Key));
-                var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-                var claims = new[]
-                {
-                    new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                    new Claim(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
-                    new Claim("mobile", user.Mobile ?? string.Empty),
-                    new Claim("name", user.Name ?? string.Empty),
-                    new Claim("role", user.Role ?? "user"),
-                    new Claim("isPremium", user.IsPremium.ToString()),
-                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                    new Claim(JwtRegisteredClaimNames.Iat,
-                        new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds().ToString(),
-                        ClaimValueTypes.Integer64)
-                };
-
+                var signIn = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
                 var token = new JwtSecurityToken(
-                    issuer: _jwtConfig.Issuer,
-                    audience: _jwtConfig.Audience,
-                    claims: claims,
+                    _jwtConfig.Issuer,
+                    _jwtConfig.Audience,
+                    claims,
                     expires: DateTime.UtcNow.AddMinutes(_jwtConfig.ExpirationInMinutes),
-                    signingCredentials: credentials
-                );
+                    signingCredentials: signIn);
 
-                var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-
-                _logger.LogInformation("JWT token generated successfully for user ID: {UserId}", user.Id);
-
-                return tokenString;
+                return new JwtSecurityTokenHandler().WriteToken(token);
             }
             catch (Exception ex)
             {
@@ -116,7 +112,10 @@ namespace ChatBot.Repository
                 throw;
             }
         }
-
+        private Claim CreateClaim(string type, string value)
+        {
+            return new Claim(type, string.IsNullOrEmpty(value) ? "" : value);
+        }
         public string GenerateRefreshToken()
         {
             try

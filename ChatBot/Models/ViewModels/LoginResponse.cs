@@ -6,7 +6,7 @@
         public string AccessToken { get; set; } = string.Empty;
         public string RefreshToken { get; set; } = string.Empty;
         public DateTime TokenExpiration { get; set; }
-        public string TokenType { get; set; } = "Bearer";
+        public string TokenType { get; set; } =string.Empty;
     }
 
     public class RefreshTokenRequest

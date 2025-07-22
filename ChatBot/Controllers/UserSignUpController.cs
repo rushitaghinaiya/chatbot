@@ -90,9 +90,8 @@ namespace ChatBot.Controllers
                 {
                     users1 = new Users
                     {
-                        Email = userVM.Email,
                         Mobile = userVM.Mobile,
-                        Name = string.Empty, // Will be updated later
+                        Name = userVM.Name,
                         Role = "user",
                         IsPremium = false,
                         CreatedAt = DateTime.UtcNow,
@@ -110,32 +109,25 @@ namespace ChatBot.Controllers
                     _logger.LogInformation("Existing user found with ID: {UserId} for mobile: {Mobile}", users1.Id, userVM.Mobile);
                 }
 
-                var otpSent = await MobileOtpAsync(users1);
-                if (otpSent)
+                // Remove sensitive info before returning
+               
+                var token = _jwtTokenService.Authenticate(users1);
+                users1.Mobile = MaskMobileNumber(users1.Mobile);
+                // Prepare login response with tokens
+                var loginResponse = new LoginResponse
                 {
-                    // Remove sensitive information before returning
-                    users1.PasswordHash = string.Empty;
-                    users1.Mobile = MaskMobileNumber(users1.Mobile);
-
-                    _logger.LogInformation("User signup successful, OTP sent for mobile: {Mobile}", userVM.Mobile);
-
-                    return Ok(new ApiResponseVM<Users>
-                    {
-                        Success = true,
-                        Data = users1,
-                        Message = "OTP sent successfully to your mobile number"
-                    });
-                }
-                else
+                    User = users1,
+                    AccessToken = token.Token,
+                    RefreshToken = token.RefreshToken,
+                    TokenExpiration = token.RefreshTokenExpiration,
+                    TokenType = "Bearer"
+                };
+                return Ok(new ApiResponseVM<LoginResponse>
                 {
-                    _logger.LogError("Failed to send OTP for signup: {Mobile}", userVM.Mobile);
-                    return StatusCode(500, new ApiResponseVM<object>
-                    {
-                        Success = false,
-                        Message = "Failed to send OTP. Please try again.",
-                        ErrorCode = "OTP_SEND_FAILED"
-                    });
-                }
+                    Success = true,
+                    Data = loginResponse,
+                    Message = "User signup successful"
+                });
             }
             catch (TaskCanceledException)
             {
@@ -255,7 +247,7 @@ namespace ChatBot.Controllers
                 };
 
                 _userSignUp.SaveLoginLog(loginLogVM);
-                var token = _jwtTokenService.Authenticate(modelVM.UserId);
+               // var token = _jwtTokenService.Authenticate(modelVM.UserId);
                 // Prepare login response with tokens
                 var loginResponse = new LoginResponse
                 {
@@ -270,9 +262,9 @@ namespace ChatBot.Controllers
                         CreatedAt = user.CreatedAt,
                         UpdatedAt = DateTime.UtcNow
                     },
-                    AccessToken = token.Token,
-                    RefreshToken = token.RefreshToken,
-                    TokenExpiration = token.RefreshTokenExpiration,
+                    //AccessToken = token.Token,
+                    //RefreshToken = token.RefreshToken,
+                    //TokenExpiration = token.RefreshTokenExpiration,
                     TokenType = "Bearer"
                 };
 

@@ -16,6 +16,7 @@ namespace ChatBot.Models.Common
 
         [Required]
         public string Issuer { get; set; } = string.Empty;
+        public string Subject { get; set; } = string.Empty;
 
         [Required]
         public string Audience { get; set; } = string.Empty;
