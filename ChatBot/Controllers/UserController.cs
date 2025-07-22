@@ -1,6 +1,7 @@
 ﻿using ChatBot.Models.Common;
 using ChatBot.Models.Services;
 using ChatBot.Models.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -11,6 +12,7 @@ namespace ChatBot.Controllers
     [Route("chatbot/v1/[controller]/[action]")]
     [EnableCors("allowCors")]
     [Produces("application/json")]
+
     public class UserController : ControllerBase
     {
         private readonly AppSettings _appSetting;
@@ -286,6 +288,7 @@ namespace ChatBot.Controllers
         /// <returns>Service health status</returns>
         [HttpGet]
         [ProducesResponseType(typeof(object), 200)]
+        [Authorize]
         public IActionResult HealthCheck()
         {
             return Ok(new
