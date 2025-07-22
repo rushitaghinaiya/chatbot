@@ -85,9 +85,8 @@ namespace ChatBot.Controllers
                 {
                     users1 = new Users
                     {
-                        Email = userVM.Email,
                         Mobile = userVM.Mobile,
-                        Name = string.Empty, // Will be updated later
+                        Name = userVM.Name,
                         Role = "user",
                         IsPremium = false,
                         CreatedAt = DateTime.UtcNow,
@@ -105,32 +104,16 @@ namespace ChatBot.Controllers
                     _logger.LogInformation("Existing user found with ID: {UserId} for mobile: {Mobile}", users1.Id, userVM.Mobile);
                 }
 
-                var otpSent = await MobileOtpAsync(users1);
-                if (otpSent)
-                {
-                    // Remove sensitive information before returning
-                    users1.PasswordHash = string.Empty;
-                    users1.Mobile = MaskMobileNumber(users1.Mobile);
+                // Remove sensitive info before returning
+                users1.PasswordHash = string.Empty;
+                users1.Mobile = MaskMobileNumber(users1.Mobile);
 
-                    _logger.LogInformation("User signup successful, OTP sent for mobile: {Mobile}", userVM.Mobile);
-
-                    return Ok(new ApiResponseVM<Users>
-                    {
-                        Success = true,
-                        Data = users1,
-                        Message = "OTP sent successfully to your mobile number"
-                    });
-                }
-                else
+                return Ok(new ApiResponseVM<Users>
                 {
-                    _logger.LogError("Failed to send OTP for signup: {Mobile}", userVM.Mobile);
-                    return StatusCode(500, new ApiResponseVM<object>
-                    {
-                        Success = false,
-                        Message = "Failed to send OTP. Please try again.",
-                        ErrorCode = "OTP_SEND_FAILED"
-                    });
-                }
+                    Success = true,
+                    Data = users1,
+                    Message = "User signup successful"
+                });
             }
             catch (TaskCanceledException)
             {

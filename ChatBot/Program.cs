@@ -6,6 +6,7 @@ using ChatBot.Repository;
 using Microsoft.OpenApi.Models;
 using VRMDBCommon2023;
 using Serilog;
+using ChatBot.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
@@ -73,12 +74,15 @@ app.UsePathBase("/api");
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/api/swagger/v1/swagger.json", "ChatBot API v1");
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ChatBot API v1");
     c.RoutePrefix = "swagger";  // Available at /api/swagger
 });
 
 app.UseHttpsRedirection();
 app.UseCors("allowCors");
+//app.UseMiddleware<SessionTrackingMiddleware>();
+//app.UseMiddleware<RequestLoggingMiddleware>();
+
 app.UseAuthorization();
 
 app.MapControllers();
