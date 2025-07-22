@@ -299,5 +299,104 @@ namespace ChatBot.Controllers
                 Version = "1.0.0"
             });
         }
+
+        [HttpGet("get_total_users")]
+        public IActionResult GetUserStats()
+        {
+            var stats = _user.GetUserStats();
+            return Ok(new ApiResponseVM<UserStatsDto>
+            {
+                Success = true,
+                Data = stats,
+                Message = "User updated successfully"
+            });
+        }
+
+        [HttpGet("get_avg_response_time")]
+        public IActionResult GetAverageResponseTime()
+        {
+            var result = _user.GetAverageResponseTime();
+            return Ok(new ApiResponseVM<ResponseTimeStatsDto>
+            {
+                Success = true,
+                Data = result,
+                Message = "User updated successfully"
+            });
+        }
+        [HttpGet("get_active_sessions")]
+        public IActionResult GetActiveSessions()
+        {
+            var data = _user.GetActiveSessions();
+            return Ok(new ApiResponseVM<List<UserSession>>
+            {
+                Success = true,
+                Data = data,
+                Message = "User updated successfully"
+            });
+        }
+        [HttpGet("get_user_list")]
+        public IActionResult GetChatbotUsage()
+        {
+            var data = _user.GetUserChatbotStats();
+            return Ok(new ApiResponseVM<List<UserChatbotStatsDto>>
+            {
+                Success = true,
+                Data = data,
+                Message = "User updated successfully"
+            });
+        }
+        [HttpGet("get_query_topics_distribution")]
+        public async Task<IActionResult> GetQueryTopicDistribution()
+        {
+            var data = await _user.GetQueryTopicDistributionAsync();
+            return Ok(new ApiResponseVM<List<QueryTopicDistributionDto>>
+            {
+                Success = true,
+                Data = data,
+                Message = "User updated successfully"
+            });
+        }
+        [HttpGet("get_query_status")]
+        public async Task<IActionResult> GetQueryStatusDistribution()
+        {
+            var result = await _user.GetQueryStatusDistributionAsync();
+            return Ok(new ApiResponseVM<List<QueryStatusDistribution>>
+            {
+                Success = true,
+                Data = result,
+                Message = "User updated successfully"
+            });
+        }
+
+        [HttpGet("get_user_types")]
+        public async Task<IActionResult> GetUserTypeDistribution()
+        {
+            var data = await _user.GetUserTypeDistributionAsync();
+            return Ok(data);
+        }
+
+        [HttpGet("get_average_metrics")]
+        public async Task<IActionResult> GetAverageMetrics()
+        {
+            var result = await _user.GetAverageMetricsAsync();
+            return Ok(new ApiResponseVM<AverageMetricsDto>
+            {
+                Success = true,
+                Data = result,
+                Message = "User updated successfully"
+            });
+        }
+
+        [HttpGet("get_admin_login_logs")]
+        public async Task<IActionResult> GetAdminLogs()
+        {
+            var result = await _user.GetAdminLogsAndStatusAsync();
+            return Ok(new ApiResponseVM<List<AdminLoginLog>>
+            {
+                Success = true,
+                Data = result,
+                Message = "User updated successfully"
+            });
+        }
     }
 }

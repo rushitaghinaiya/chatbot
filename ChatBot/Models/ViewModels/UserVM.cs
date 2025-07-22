@@ -3,7 +3,7 @@
     public class UserVM
     {
         public string Mobile {  get; set; }
-        public string Email {  get; set; }
+        //public string Email {  get; set; }
         public string Name {  get; set; }
     }
 }

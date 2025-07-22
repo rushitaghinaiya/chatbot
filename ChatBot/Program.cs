@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using VRMDBCommon2023;
 using Serilog;
+using ChatBot.Middleware;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -156,12 +157,15 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ChatBot API V1");
-    c.RoutePrefix = "swagger"; // This makes Swagger available at /swagger
+    c.SwaggerEndpoint("/api/swagger/v1/swagger.json", "ChatBot API v1");
+    c.RoutePrefix = "swagger";  // Available at /api/swagger
 });
 
 app.UseHttpsRedirection();
 app.UseCors("allowCors");
+//app.UseMiddleware<SessionTrackingMiddleware>();
+//app.UseMiddleware<RequestLoggingMiddleware>();
+
 
 // Add Authentication and Authorization middleware
 app.UseAuthentication();
