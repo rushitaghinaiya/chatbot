@@ -9,7 +9,7 @@ using Microsoft.Extensions.Options;
 namespace ChatBot.Controllers
 {
     [ApiController]
-    [Route("chatbot/v1/[controller]/[action]")]
+    [Route("api/v1/[controller]/[action]")]
     [EnableCors("allowCors")]
     [Produces("application/json")]
 
@@ -311,23 +311,42 @@ namespace ChatBot.Controllers
                 Message = "User updated successfully"
             });
         }
-
-        [HttpGet("get_avg_response_time")]
-        public IActionResult GetAverageResponseTime()
+        [HttpGet("get_queries_today")]
+        public async Task<IActionResult> GetTodaysQueryStats()
         {
-            var result = _user.GetAverageResponseTime();
-            return Ok(new ApiResponseVM<ResponseTimeStatsDto>
+            try
+            {
+                var (todayCount, lastMonthCount, percentChange) = await _user.GetTodayQueryStatsAsync();
+
+                return Ok(new
+                {
+                    todayCount,
+                    lastMonthSameDayCount = lastMonthCount,
+                    percentageChange = percentChange
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error fetching query stats", error = ex.Message });
+            }
+        }
+        [HttpGet("get_avg_response_time")]
+        public async  Task<IActionResult> GetAverageResponseTime()
+        {
+            var (avgResponseTime, lastMonthAvg, percentageChange) = await _user.GetAverageResponseTimeAsync();
+            return Ok(new
             {
                 Success = true,
-                Data = result,
+                Data = new {avgResponseTime,lastMonthAvg,percentageChange},
                 Message = "User updated successfully"
             });
         }
+
         [HttpGet("get_active_sessions")]
-        public IActionResult GetActiveSessions()
+        public async Task<IActionResult> GetActiveSessions()
         {
-            var data = _user.GetActiveSessions();
-            return Ok(new ApiResponseVM<List<UserSession>>
+            var data = await _user.GetSessionStats();
+            return Ok(new ApiResponseVM<SessionStatsDto>
             {
                 Success = true,
                 Data = data,
@@ -348,7 +367,7 @@ namespace ChatBot.Controllers
         [HttpGet("get_query_topics_distribution")]
         public async Task<IActionResult> GetQueryTopicDistribution()
         {
-            var data = await _user.GetQueryTopicDistributionAsync();
+            var data = await _user.GetQueryTopicDistribution();
             return Ok(new ApiResponseVM<List<QueryTopicDistributionDto>>
             {
                 Success = true,
@@ -360,7 +379,7 @@ namespace ChatBot.Controllers
         public async Task<IActionResult> GetQueryStatusDistribution()
         {
             var result = await _user.GetQueryStatusDistributionAsync();
-            return Ok(new ApiResponseVM<List<QueryStatusDistribution>>
+            return Ok(new ApiResponseVM<QueryStatusDistribution>
             {
                 Success = true,
                 Data = result,
@@ -397,6 +416,64 @@ namespace ChatBot.Controllers
                 Data = result,
                 Message = "User updated successfully"
             });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SaveUserSession(BotSessionDto botSession)
+        {
+            if (botSession.EndTime <= botSession.StartTime)
+            {
+                return BadRequest("EndTime must be greater than StartTime");
+            }
+            BotSession session = new BotSession()
+            {
+                UserId = botSession.UserId,
+                StartTime= botSession.StartTime,
+                EndTime = botSession.EndTime,
+                TotalTimeSpent= botSession.TotalTimeSpent,
+                CreatedAt=DateTime.Now
+
+            };
+            var result = await _user.SaveUserSession(session);
+
+            if (result)
+            {
+                return Ok(new ApiResponseVM<List<AdminLoginLog>>
+                {
+                    Success = true,
+                    Data = null,
+                    Message = "Session saved successfully"
+                });
+            }
+            else
+            {
+                return StatusCode(500, "An error occurred while saving the session");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SaveQueryHistory(QueryHistoryDto queryHistory)
+        {
+            if (queryHistory.UserId==0)
+            {
+                return BadRequest("User Not Found");
+            }
+            
+            var result = await _user.SaveQueryHistory(queryHistory);
+
+            if (result)
+            {
+                return Ok(new ApiResponseVM<QueryHistoryDto>
+                {
+                    Success = true,
+                    Data = null,
+                    Message = "query history saved successfully"
+                });
+            }
+            else
+            {
+                return StatusCode(500, "An error occurred while saving the query history");
+            }
         }
     }
 }

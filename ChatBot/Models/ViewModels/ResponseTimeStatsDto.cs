@@ -2,7 +2,9 @@
 {
     public class ResponseTimeStatsDto
     {
-        public double AverageResponseTimeMs { get; set; }
+        public double avgResponseTime { get; set; }
+        public double lastMonthAvg { get; set; }
+        public double percentageChange { get; set; }
     }
 
 }

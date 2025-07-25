@@ -1,37 +1,37 @@
-﻿    using ChatBot.Models.Configuration;
-    using ChatBot.Models.Responses;
-    using ChatBot.Models.ViewModels;
-    using Microsoft.AspNetCore.Http;
-    using Microsoft.AspNetCore.Mvc;
-    using Microsoft.Extensions.Options;
-    using System.Text.Json;
+﻿using ChatBot.Models.Configuration;
+using ChatBot.Models.Responses;
+using ChatBot.Models.ViewModels;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using System.Text.Json;
 
-    namespace ChatBot.Controllers
+namespace ChatBot.Controllers
+{
+    [Route("api/v1/[controller]")]
+    [ApiController]
+    [Produces("application/json")]
+    public class MedicareKnowledgeBaseController : ControllerBase
     {
-        [Route("api/[controller]")]
-        [ApiController]
-        [Produces("application/json")]
-        public class MedicareKnowledgeBaseController : ControllerBase
-        {
-            private readonly HttpClient _httpClient;
-            private readonly MedicareConfig _config;
-            private readonly ILogger<MedicareKnowledgeBaseController> _logger;
-            private readonly JsonSerializerOptions _jsonOptions;
+        private readonly HttpClient _httpClient;
+        private readonly MedicareConfig _config;
+        private readonly ILogger<MedicareKnowledgeBaseController> _logger;
+        private readonly JsonSerializerOptions _jsonOptions;
 
-            public MedicareKnowledgeBaseController(
-                HttpClient httpClient,
-                IOptions<MedicareConfig> config,
-                ILogger<MedicareKnowledgeBaseController> logger)
+        public MedicareKnowledgeBaseController(
+            HttpClient httpClient,
+            IOptions<MedicareConfig> config,
+            ILogger<MedicareKnowledgeBaseController> logger)
+        {
+            _httpClient = httpClient;
+            _config = config.Value;
+            _logger = logger;
+            _jsonOptions = new JsonSerializerOptions
             {
-                _httpClient = httpClient;
-                _config = config.Value;
-                _logger = logger;
-                _jsonOptions = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                };
-            }
+                PropertyNameCaseInsensitive = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+        }
 
         // Handles file storage requests for Medicare knowledge base.
         // Validates input and proxies the request to the Python API.
@@ -84,7 +84,7 @@
             pythonUrl += $"&document_category={Uri.EscapeDataString(documentCategory)}";
             pythonUrl += $"&db_type={Uri.EscapeDataString(finalDbType)}";
 
-            
+
 
             using var formData = new MultipartFormDataContent();
             if (file != null)
@@ -128,7 +128,7 @@
         // Handles Q&A requests for Medicare knowledge base files.
         // Validates input and proxies the question to the Python API.
         // Returns the answer from the knowledge base.
-        
+
         [HttpPost("file-qna/{companyCode}")]
         [ProducesResponseType(typeof(ApiResponseVM<QnAResponse>), 200)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
@@ -251,5 +251,5 @@
                 }
             });
         }
-        }
     }
+}
