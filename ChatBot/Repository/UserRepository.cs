@@ -299,8 +299,8 @@ namespace ChatBot.Repository
                     LastMonthEnd = lastMonthEnd
                 });
 
-                double todayAvg = Math.Round(result.TodayAvg ?? 0, 2);
-                double lastMonthAvg = Math.Round(result.LastMonthAvg ?? 0, 2);
+                double todayAvg = Math.Round((double)(result?.TodayAvg ?? 0m), 2);
+                double lastMonthAvg = Math.Round((double)(result?.LastMonthAvg ?? 0m), 2);
 
                 double percentChange = 0;
                 if (lastMonthAvg > 0)
