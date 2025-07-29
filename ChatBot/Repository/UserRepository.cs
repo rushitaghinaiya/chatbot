@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using static ChatBot.Models.Common.AesEncryptionHelper;
 
 namespace ChatBot.Repository
 {
@@ -375,6 +376,11 @@ namespace ChatBot.Repository
                   ORDER BY U.Id;"
                     ).Result.ToList();
 
+                    foreach (var item in result)
+                    {
+                        item.Mobile = Decrypt(item.Mobile);
+                    }
+
                     return result;
                 }
                 catch (Exception)
@@ -448,23 +454,26 @@ namespace ChatBot.Repository
         {
             using var connection = new SqlConnection(_connectionString);
 
-            var query = @"
-        SELECT
-            ROUND(AVG(CAST(totalTimeSpent AS FLOAT)) / 60, 1) AS AvgDuration,
-            ROUND(CAST(COUNT(Q.Id) AS FLOAT) / NULLIF(COUNT(DISTINCT U.Id), 0), 1) AS AvgQueries,
-            0 AS AvgFamily
-        FROM Users U
-        LEFT JOIN BotSessions S ON S.UserId = U.Id
-        LEFT JOIN QueryHistory Q ON Q.UserId = U.Id
-    ";
+            var AvgDuration = await connection.QueryFirstOrDefaultAsync<double?>(@"
+                SELECT 
+                ROUND(AVG(CAST(S.totalTimeSpent AS FLOAT)) / 60, 1) AS AvgDuration
+                FROM BotSessions S
+                WHERE CAST(S.StartTime AS DATE) = CAST(GETDATE() AS DATE)
+            ");
 
-            var result = await connection.QueryFirstOrDefaultAsync(query);
+            var AvgQueries = await connection.QueryFirstOrDefaultAsync<double?>(@"
+                SELECT 
+                ROUND(CAST(COUNT(Q.QueryId) AS FLOAT) / NULLIF(COUNT(DISTINCT Q.UserId), 0), 1) AS AvgQueries
+                FROM QueryHistory Q
+                WHERE CAST(Q.Timestamp AS DATE) = CAST(GETDATE() AS DATE)
+            ");
+
 
             return new AverageMetricsDto
             {
-                AvgSessionDuration = $"{result.AvgDuration} min",
-                AvgQueriesPerUser = result.AvgQueries,
-                AvgFamilyMembersPerUser = result.AvgFamily
+                AvgSessionDuration = $"{AvgDuration} min",
+                AvgQueriesPerUser = Convert.ToDouble(AvgQueries),
+                AvgFamilyMembersPerUser = 0
             };
         }
 
@@ -472,26 +481,24 @@ namespace ChatBot.Repository
         {
             using (var connection = new SqlConnection(_connectionString))
             {
-                var query = @"
-                    WITH RankedLogins AS (
-                        SELECT 
-                            l.AdminId,
-                            l.LoginTime,
-                            l.Actions,
-                            ROW_NUMBER() OVER (PARTITION BY l.AdminId ORDER BY l.LoginTime DESC) AS rn
-                        FROM ChatbotDB.dbo.AdminLoginLogs l
-                        WHERE l.LoginTime >= DATEADD(DAY, -30, GETDATE())
-                    )
-                    SELECT 
-                        r.AdminId,
+                var query = @"SELECT 
+                        a.AdminId ,
                         a.Email,
-                        r.LoginTime,
-                        r.Actions
-                    FROM RankedLogins r
-                    INNER JOIN ChatbotDB.dbo.Admins a ON r.AdminId = a.AdminId
-                    WHERE r.rn = 1
-                    ORDER BY r.LoginTime DESC;
-                ";
+                        MAX(l.LoginTime) AS LastActivityTime,
+                        STUFF((
+                            SELECT DISTINCT ', ' + innerLog.Actions
+                            FROM [ChatbotDB].[dbo].[AdminLoginLogs] AS innerLog
+                            WHERE innerLog.AdminId = a.AdminId
+                              AND innerLog.LoginTime >= DATEADD(DAY, -30, GETDATE())
+                            FOR XML PATH(''), TYPE).value('.', 'NVARCHAR(MAX)'), 1, 2, '') AS Actions
+                    FROM 
+                        [ChatbotDB].[dbo].[Admins] a
+                    JOIN 
+                        [ChatbotDB].[dbo].[AdminLoginLogs] l ON a.AdminId = l.AdminId
+                    WHERE 
+                        l.LoginTime >= DATEADD(DAY, -30, GETDATE())
+                    GROUP BY 
+                        a.AdminId, a.Email;";
 
                 var result = await connection.QueryAsync<AdminLoginLog>(query);
                 return result.ToList();

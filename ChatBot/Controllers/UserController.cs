@@ -361,7 +361,7 @@ namespace ChatBot.Controllers
             {
                 Success = true,
                 Data = data,
-                Message = "User updated successfully"
+                Message = "Users fetch successfully"
             });
         }
         [HttpGet("get_query_topics_distribution")]
@@ -397,7 +397,7 @@ namespace ChatBot.Controllers
         [HttpGet("get_average_metrics")]
         public async Task<IActionResult> GetAverageMetrics()
         {
-            var result = await _user.GetAverageMetricsAsync();
+            AverageMetricsDto result = await _user.GetAverageMetricsAsync();
             return Ok(new ApiResponseVM<AverageMetricsDto>
             {
                 Success = true,
