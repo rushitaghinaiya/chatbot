@@ -10,6 +10,7 @@ using VRMDBCommon2023;
 using Serilog;
 using ChatBot.Middleware;
 using System.Text;
+using ChatBot.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
@@ -171,6 +172,9 @@ app.UseMiddleware<RequestLoggingMiddleware>();
 
 // Add Authentication and Authorization middleware
 app.UseAuthentication();
+app.UseMiddleware<SessionTrackingMiddleware>();
+app.UseMiddleware<RequestLoggingMiddleware>();
+
 app.UseAuthorization();
 
 app.MapControllers();

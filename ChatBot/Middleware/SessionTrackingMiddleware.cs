@@ -1,4 +1,4 @@
-﻿using ChatBot.Models.Services;
+using ChatBot.Models.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 

@@ -1,4 +1,4 @@
-﻿using ChatBot.Models.Services;
+using ChatBot.Models.Services;
 using ChatBot.Models.ViewModels;
 using Dapper;
 using Microsoft.AspNetCore.Mvc;

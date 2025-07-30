@@ -24,5 +24,15 @@ namespace ChatBot.Models.Services
         bool UpdateRefreshToken(RefreshToken refreshToken);
         Users GetUserByRefreshToken(string token);
         RefreshToken GetRefreshByRefreshToken(string token);
+        Task UpdateSessionAsync(int? userId, string sessionKey, string ip, string agent);
+        List<UserSession> GetActiveSessions();
+        UserStatsDto GetUserStats();
+        ResponseTimeStatsDto GetAverageResponseTime();
+        List<UserChatbotStatsDto> GetUserChatbotStats();
+        Task<List<QueryTopicDistributionDto>> GetQueryTopicDistributionAsync();
+        Task<List<QueryStatusDistribution>> GetQueryStatusDistributionAsync();
+        Task<List<UserTypeDistribution>> GetUserTypeDistributionAsync();
+        Task<AverageMetricsDto> GetAverageMetricsAsync();
+        Task<List<AdminLoginLog>> GetAdminLogsAndStatusAsync();
     }
 }

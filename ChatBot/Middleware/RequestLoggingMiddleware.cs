@@ -1,4 +1,4 @@
-﻿using ChatBot.Models.Entities;
+using ChatBot.Models.Entities;
 using ChatBot.Models.Services;
 using Newtonsoft.Json;
 using System.IdentityModel.Tokens.Jwt;
