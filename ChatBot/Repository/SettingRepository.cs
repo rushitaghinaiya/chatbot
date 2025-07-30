@@ -35,6 +35,29 @@ namespace ChatBot.Repository
                 }
             }
         }
+        public bool UpdateLanguage(Language model)
+        {
+
+            const string sql = @"
+            UPDATE Language SET 
+                LanguageName = @LanguageName,
+                Language_Code = @Language_Code,
+                IsActive = @IsActive
+            WHERE Id = @Id";
+
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    var result = connection.ExecuteAsync(sql, model).Result;
+                    return result > 0;
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }
+        }
 
         public SecuritySettings? GetSecuritySettings()
         {

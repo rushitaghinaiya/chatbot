@@ -29,7 +29,7 @@ namespace ChatBot.Controllers
         [HttpGet("get_languages")]
         public async Task<IActionResult> GetLanguage()
         {
-            var result=await _setting.GetLanguage();
+            var result = await _setting.GetLanguage();
             return Ok(new ApiResponseVM<List<Language>>
             {
                 Success = true,
@@ -38,48 +38,74 @@ namespace ChatBot.Controllers
             });
         }
 
-        [HttpGet("security")]
+        [HttpPut("update_language_status")]
+        public IActionResult UpdateLanguage(List<Language> model)
+        {
+            bool updated = false;
+            foreach (Language language in model)
+            {
+                 updated = _setting.UpdateLanguage(language);
+            }
+            return updated ? Ok(new { message = "Language updated successfully.", status = true }) : BadRequest(new { message = "Update failed.", status = false });
+        }
+
+        [HttpGet("get_security_settings")]
         public IActionResult GetSecuritySettings()
         {
             var result = _setting.GetSecuritySettings();
-            return Ok(result);
+            return Ok(new ApiResponseVM<SecuritySettings>
+            {
+                Success = true,
+                Data = result,
+                Message = "Data fetch successfully.",
+            });
         }
 
-        [HttpPost("security")]
+        [HttpPut("update_security_settings")]
         public IActionResult UpdateSecuritySettings(SecuritySettings model)
         {
             var updated = _setting.UpdateSecuritySettings(model);
-            return updated ? Ok() : BadRequest();
+            return updated ? Ok(new { message = "Security setting updated successfully." }) : BadRequest("Update failed.");
         }
 
         // --- Voice Settings ---
-        [HttpGet("voice")]
+        [HttpGet("get_voice_accessibility_settings")]
         public IActionResult GetVoiceSettings()
         {
             var result = _setting.GetVoiceSettings();
-            return Ok(result);
+            return Ok(new ApiResponseVM<VoiceAccessibilitySettings>
+            {
+                Success = true,
+                Data = result,
+                Message = "Data fetch successfully.",
+            });
         }
 
-        [HttpPost("voice")]
+        [HttpPut("update_voice_accessibility_settings")]
         public IActionResult UpdateVoiceSettings(VoiceAccessibilitySettings model)
         {
             var updated = _setting.UpdateVoiceSettings(model);
-            return updated ? Ok() : BadRequest();
+            return updated ? Ok(new { message = "Voice setting updated successfully.", status = true }) : BadRequest(new { message = "Update failed.", status = false });
         }
 
         // --- System Limits ---
-        [HttpGet("limits")]
+        [HttpGet("get_system_limits")]
         public IActionResult GetSystemLimits()
         {
             var result = _setting.GetSystemLimits();
-            return Ok(result);
+            return Ok(new ApiResponseVM<SystemLimits>
+            {
+                Success = true,
+                Data = result,
+                Message = "Data fetch successfully.",
+            });
         }
 
-        [HttpPost("limits")]
+        [HttpPut("update_system_limits")]
         public IActionResult UpdateSystemLimits(SystemLimits model)
         {
             var updated = _setting.UpdateSystemLimits(model);
-            return updated ? Ok() : BadRequest();
+            return updated ? Ok(new { message = "System limit updated successfully.", status = true }) : BadRequest(new { message = "Update failed.", status = false });
         }
     }
 }

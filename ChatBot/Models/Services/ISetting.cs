@@ -4,8 +4,8 @@ namespace ChatBot.Models.Services
 {
     public interface ISetting
     {
-         Task<List<Language>> GetLanguage();
-
+        Task<List<Language>> GetLanguage();
+        bool UpdateLanguage(Language model);
         SecuritySettings? GetSecuritySettings();
         bool UpdateSecuritySettings(SecuritySettings model);
         VoiceAccessibilitySettings? GetVoiceSettings();
