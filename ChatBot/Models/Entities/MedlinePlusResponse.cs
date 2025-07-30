@@ -10,5 +10,6 @@ namespace ChatBot.Models.Entities
         public int RetStart { get; set; }
         public int RetMax { get; set; }
         public DateTime Timestamp { get; set; }
+        public string DataSource { get; set; } = string.Empty;  
     }
 }

@@ -1,37 +1,37 @@
-﻿    using ChatBot.Models.Configuration;
-    using ChatBot.Models.Responses;
-    using ChatBot.Models.ViewModels;
-    using Microsoft.AspNetCore.Http;
-    using Microsoft.AspNetCore.Mvc;
-    using Microsoft.Extensions.Options;
-    using System.Text.Json;
+﻿using ChatBot.Models.Configuration;
+using ChatBot.Models.Responses;
+using ChatBot.Models.ViewModels;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using System.Text.Json;
 
-    namespace ChatBot.Controllers
+namespace ChatBot.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    [Produces("application/json")]
+    public class MedicareKnowledgeBaseController : ControllerBase
     {
-        [Route("api/[controller]")]
-        [ApiController]
-        [Produces("application/json")]
-        public class MedicareKnowledgeBaseController : ControllerBase
-        {
-            private readonly HttpClient _httpClient;
-            private readonly MedicareConfig _config;
-            private readonly ILogger<MedicareKnowledgeBaseController> _logger;
-            private readonly JsonSerializerOptions _jsonOptions;
+        private readonly HttpClient _httpClient;
+        private readonly MedicareConfig _config;
+        private readonly ILogger<MedicareKnowledgeBaseController> _logger;
+        private readonly JsonSerializerOptions _jsonOptions;
 
-            public MedicareKnowledgeBaseController(
-                HttpClient httpClient,
-                IOptions<MedicareConfig> config,
-                ILogger<MedicareKnowledgeBaseController> logger)
+        public MedicareKnowledgeBaseController(
+            HttpClient httpClient,
+            IOptions<MedicareConfig> config,
+            ILogger<MedicareKnowledgeBaseController> logger)
+        {
+            _httpClient = httpClient;
+            _config = config.Value;
+            _logger = logger;
+            _jsonOptions = new JsonSerializerOptions
             {
-                _httpClient = httpClient;
-                _config = config.Value;
-                _logger = logger;
-                _jsonOptions = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                };
-            }
+                PropertyNameCaseInsensitive = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+        }
 
         // Handles file storage requests for Medicare knowledge base.
         // Validates input and proxies the request to the Python API.
@@ -84,7 +84,7 @@
             pythonUrl += $"&document_category={Uri.EscapeDataString(documentCategory)}";
             pythonUrl += $"&db_type={Uri.EscapeDataString(finalDbType)}";
 
-            
+
 
             using var formData = new MultipartFormDataContent();
             if (file != null)
@@ -128,7 +128,7 @@
         // Handles Q&A requests for Medicare knowledge base files.
         // Validates input and proxies the question to the Python API.
         // Returns the answer from the knowledge base.
-        
+
         [HttpPost("file-qna/{companyCode}")]
         [ProducesResponseType(typeof(ApiResponseVM<QnAResponse>), 200)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
@@ -251,5 +251,249 @@
                 }
             });
         }
+
+        // Gets the list of knowledge bases for a company.
+        // Validates input and proxies the request to the Python API.
+        // Returns the list of available knowledge bases.
+        [HttpGet("kb-list/{companyCode}")]
+        [ProducesResponseType(typeof(ApiResponseVM<KnowledgeBaseListResponse>), 200)]
+        [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
+        [ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
+        public async Task<IActionResult> GetKnowledgeBaseList(
+            [FromRoute] string companyCode,
+            [FromQuery] string? dbType = null)
+        {
+            _logger.LogInformation("Received knowledge base list request for company: {CompanyCode}", companyCode);
+
+            if (string.IsNullOrEmpty(companyCode) || companyCode != _config.CompanyCode)
+            {
+                return BadRequest(new ApiResponseVM<object>
+                {
+                    Success = false,
+                    Message = $"Invalid company code. Expected: {_config.CompanyCode}",
+                });
+            }
+
+            var finalDbType = dbType ?? _config.DbType;
+
+            var pythonUrl = $"{_config.PythonApiBaseUrl}/api/v1/medicare-knowledgebase/kb-list/{companyCode}";
+            pythonUrl += $"?db_type={Uri.EscapeDataString(finalDbType)}";
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_config.TimeoutSeconds));
+
+            _logger.LogInformation("Calling Python API: {PythonUrl}", pythonUrl);
+
+
+
+            var response = await _httpClient.GetAsync(pythonUrl, cts.Token);
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation("Python API knowledge base list call successful");
+
+                if (string.IsNullOrWhiteSpace(responseContent) || responseContent.Trim() == "{}")
+                {
+                    _logger.LogWarning("Python API returned empty response.");
+                    return Ok(new ApiResponseVM<KnowledgeBaseListResponse>
+                    {
+                        Success = false,
+                        Message = "Empty response from Python API"
+                    });
+                }
+
+                var pythonResponse = JsonSerializer.Deserialize<KnowledgeBaseListResponse>(responseContent, _jsonOptions);
+                if (pythonResponse == null)
+                {
+                    _logger.LogWarning("Deserialization returned null.");
+                    return Ok(new ApiResponseVM<KnowledgeBaseListResponse>
+                    {
+                        Success = false,
+                        Message = "Invalid response from Python API"
+                    });
+                }
+
+                // Check if the Python API response indicates success
+                if (pythonResponse.StatusCode != 200 || pythonResponse.Status != "success")
+                {
+                    _logger.LogWarning("Python API returned unsuccessful response. Status: {Status}, StatusCode: {StatusCode}",
+                        pythonResponse.Status, pythonResponse.StatusCode);
+                    return Ok(new ApiResponseVM<KnowledgeBaseListResponse>
+                    {
+                        Success = false,
+                        Message = $"Python API returned: {pythonResponse.Status}",
+                        Data = pythonResponse
+                    });
+                }
+
+                return Ok(new ApiResponseVM<KnowledgeBaseListResponse>
+                {
+                    Success = true,
+                    Data = pythonResponse,
+                    Message = "Success"
+                });
+            }
+            else
+            {
+                _logger.LogError("Python API knowledge base list call failed. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, responseContent);
+
+                return BadRequest(new ApiResponseVM<object>
+                {
+                    Success = false,
+                    Message = $"Python API call failed with status {response.StatusCode}",
+                });
+            }
+
+        }
+
+        // Handles file deletion requests for Medicare knowledge base.
+        // Validates input and proxies the request to the Python API.
+        // Returns the result of the file deletion operation.
+        [HttpDelete("delete-file/{companyCode}")]
+        [ProducesResponseType(typeof(ApiResponseVM<DeleteFileResponse>), 200)]
+        [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
+        [ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
+        public async Task<IActionResult> DeleteFiles(
+            [FromRoute] string companyCode,
+            [FromQuery] List<string> files,
+            [FromQuery] string? kbName = null,
+            [FromQuery] string? dbType = null)
+        {
+            _logger.LogInformation("Received delete files request for company: {CompanyCode}, Files: {Files}",
+                companyCode, string.Join(", ", files));
+
+            if (string.IsNullOrEmpty(companyCode) || companyCode != _config.CompanyCode)
+            {
+                return BadRequest(new ApiResponseVM<object>
+                {
+                    Success = false,
+                    Message = $"Invalid company code. Expected: {_config.CompanyCode}",
+                });
+            }
+
+            if (files == null || files.Count == 0)
+            {
+                return BadRequest(new ApiResponseVM<object>
+                {
+                    Success = false,
+                    Message = "At least one file must be specified for deletion",
+                });
+            }
+
+            // Validate that all file names are not empty
+            if (files.Any(f => string.IsNullOrWhiteSpace(f)))
+            {
+                return BadRequest(new ApiResponseVM<object>
+                {
+                    Success = false,
+                    Message = "File names cannot be empty",
+                });
+            }
+
+            var finalKbName = kbName ?? _config.KbName;
+            var finalDbType = dbType ?? _config.DbType;
+
+            // Build the URL with query parameters
+            var pythonUrl = $"{_config.PythonApiBaseUrl}/api/v1/medicare-knowledgebase/delete-file/{companyCode}";
+
+            var queryParams = new List<string>();
+
+            // Add each file as a separate query parameter
+            foreach (var file in files)
+            {
+                queryParams.Add($"files={Uri.EscapeDataString(file)}");
+            }
+
+            queryParams.Add($"kb_name={Uri.EscapeDataString(finalKbName)}");
+            queryParams.Add($"db_type={Uri.EscapeDataString(finalDbType)}");
+
+            pythonUrl += "?" + string.Join("&", queryParams);
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_config.TimeoutSeconds));
+
+            _logger.LogInformation("Calling Python API: {PythonUrl}", pythonUrl);
+
+            try
+            {
+                var response = await _httpClient.DeleteAsync(pythonUrl, cts.Token);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Python API delete files call successful");
+
+                    if (string.IsNullOrWhiteSpace(responseContent) || responseContent.Trim() == "{}")
+                    {
+                        _logger.LogWarning("Python API returned empty response.");
+                        return Ok(new ApiResponseVM<DeleteFileResponse>
+                        {
+                            Success = false,
+                            Message = "Empty response from Python API"
+                        });
+                    }
+
+                    var pythonResponse = JsonSerializer.Deserialize<DeleteFileResponse>(responseContent, _jsonOptions);
+                    if (pythonResponse == null)
+                    {
+                        _logger.LogWarning("Deserialization returned null.");
+                        return Ok(new ApiResponseVM<DeleteFileResponse>
+                        {
+                            Success = false,
+                            Message = "Invalid response from Python API"
+                        });
+                    }
+
+                    // Check if the Python API response indicates success
+                    if (pythonResponse.StatusCode != 200 || pythonResponse.Status != "success")
+                    {
+                        _logger.LogWarning("Python API returned unsuccessful response. Status: {Status}, StatusCode: {StatusCode}",
+                            pythonResponse.Status, pythonResponse.StatusCode);
+                        return Ok(new ApiResponseVM<DeleteFileResponse>
+                        {
+                            Success = false,
+                            Message = $"Python API returned: {pythonResponse.Status}",
+                            Data = pythonResponse
+                        });
+                    }
+
+                    return Ok(new ApiResponseVM<DeleteFileResponse>
+                    {
+                        Success = true,
+                        Data = pythonResponse,
+                        Message = "Files deleted successfully"
+                    });
+                }
+                else
+                {
+                    _logger.LogError("Python API delete files call failed. Status: {StatusCode}, Response: {Response}",
+                        response.StatusCode, responseContent);
+
+                    return BadRequest(new ApiResponseVM<object>
+                    {
+                        Success = false,
+                        Message = $"Python API call failed with status {response.StatusCode}",
+                    });
+                }
+            }
+            catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+            {
+                _logger.LogError("Python API delete files call timed out");
+                return BadRequest(new ApiResponseVM<object>
+                {
+                    Success = false,
+                    Message = "Request timed out",
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while calling Python API for delete files");
+                return StatusCode(500, new ApiResponseVM<object>
+                {
+                    Success = false,
+                    Message = "Internal server error",
+                });
+            }
         }
     }
+}
