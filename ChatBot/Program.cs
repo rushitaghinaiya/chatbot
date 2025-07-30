@@ -9,6 +9,7 @@ using Microsoft.OpenApi.Models;
 using VRMDBCommon2023;
 using Serilog;
 using System.Text;
+using ChatBot.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
@@ -165,6 +166,9 @@ app.UseCors("allowCors");
 
 // Add Authentication and Authorization middleware
 app.UseAuthentication();
+app.UseMiddleware<SessionTrackingMiddleware>();
+app.UseMiddleware<RequestLoggingMiddleware>();
+
 app.UseAuthorization();
 
 app.MapControllers();
