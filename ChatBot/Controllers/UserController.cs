@@ -313,10 +313,10 @@ namespace ChatBot.Controllers
     }
 
     [HttpGet("get_avg_response_time")]
-    public IActionResult GetAverageResponseTime()
+    public async Task<IActionResult> GetAverageResponseTime()
     {
-        var result = _user.GetAverageResponseTime();
-        return Ok(new ApiResponseVM<ResponseTimeStatsDto>
+        var result =await _user.GetAverageResponseTimeAsync();
+        return Ok(new ApiResponseVM<object>
         {
             Success = true,
             Data = result,
@@ -348,7 +348,7 @@ namespace ChatBot.Controllers
     [HttpGet("get_query_topics_distribution")]
     public async Task<IActionResult> GetQueryTopicDistribution()
     {
-        var data = await _user.GetQueryTopicDistributionAsync();
+        var data = await _user.GetQueryTopicDistribution();
         return Ok(new ApiResponseVM<List<QueryTopicDistributionDto>>
         {
             Success = true,
@@ -360,7 +360,7 @@ namespace ChatBot.Controllers
     public async Task<IActionResult> GetQueryStatusDistribution()
     {
         var result = await _user.GetQueryStatusDistributionAsync();
-        return Ok(new ApiResponseVM<List<QueryStatusDistribution>>
+        return Ok(new ApiResponseVM<QueryStatusDistribution>
         {
             Success = true,
             Data = result,
