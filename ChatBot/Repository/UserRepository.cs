@@ -267,6 +267,7 @@ namespace ChatBot.Repository
                 {
                     percentChange = Math.Round(((todayCount - lastMonthCount) / (double)lastMonthCount) * 100, 2);
                 }
+                
 
                 return (todayCount, lastMonthCount, percentChange);
             }
