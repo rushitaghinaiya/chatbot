@@ -2,8 +2,11 @@
 {
     public class QueryStatusDistribution
     {
-        public string Status { get; set; }
-        public int Count { get; set; }
+
+        public int AnsweredCount { get; set; }
+        public int UnansweredCount { get; set; }
+        public int IncompleteCount { get; set; }
+
     }
 
 }

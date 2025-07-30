@@ -1,4 +1,4 @@
-﻿using ChatBot.Models.Entities;
+using ChatBot.Models.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;

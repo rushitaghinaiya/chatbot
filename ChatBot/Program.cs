@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using VRMDBCommon2023;
 using Serilog;
+using ChatBot.Middleware;
 using System.Text;
 using ChatBot.Middleware;
 
@@ -25,12 +26,14 @@ builder.Services.AddHttpClient<MedlinePlusController>();
 builder.Services.AddTransient<IUserSignUp>(s => new UserSignupRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IQuestion>(s => new QuestionRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IAdmin>(s => new AdminRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
+builder.Services.AddTransient<IApiLogService>(s => new ApiLogRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IMedicine>(s => new MedicineRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
+builder.Services.AddTransient<ISetting>(s => new SettingRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IUser>(s => new UserRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IExceptionLog>(s => new ExceptionLogRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 
 // Register JWT Token Service
-builder.Services.AddTransient<IJwtTokenService, JwtTokenService>();
+builder.Services.AddTransient<IJwtTokenService, JwtTokenRepository>();
 
 // Configure AppSettings
 builder.Services.Configure<AppSettings>(configuration.GetSection("ApplicationSettings"));
@@ -157,12 +160,15 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ChatBot API V1");
-    c.RoutePrefix = "swagger"; // This makes Swagger available at /swagger
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ChatBot API v1");
+    c.RoutePrefix = "swagger";  // Available at /swagger
 });
 
 app.UseHttpsRedirection();
 app.UseCors("allowCors");
+app.UseMiddleware<SessionTrackingMiddleware>();
+app.UseMiddleware<RequestLoggingMiddleware>();
+
 
 // Add Authentication and Authorization middleware
 app.UseAuthentication();

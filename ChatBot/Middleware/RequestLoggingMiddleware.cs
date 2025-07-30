@@ -1,7 +1,8 @@
-﻿using ChatBot.Models.Entities;
+using ChatBot.Models.Entities;
 using ChatBot.Models.Services;
 using Newtonsoft.Json;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 
 namespace ChatBot.Middleware
@@ -22,7 +23,7 @@ namespace ChatBot.Middleware
         public async Task InvokeAsync(HttpContext context)
         {
             string requestPath = context.Request.Path.ToString();
-            string[] pathsToCheck = new string[] { "UserSignUp", "well-known", "RefreshToken", "apple-app-site-association" };
+            string[] pathsToCheck = new string[] { "SignUp", "RefreshToken", };
 
             if (!pathsToCheck.Any(path => requestPath.Contains(path)))
             {
@@ -66,24 +67,50 @@ namespace ChatBot.Middleware
         }
         private string GetUserIdFromToken(HttpContext context)
         {
-            var authorizationHeader = context.Request.Headers["Authorization"].FirstOrDefault();
-            if (authorizationHeader != null && (authorizationHeader.StartsWith("Bearer ") || (authorizationHeader.StartsWith("Barier "))))
-            {
-                var token = authorizationHeader.Substring("Bearer ".Length).Trim();
-                if (!string.IsNullOrEmpty(token))
-                    token = authorizationHeader.Substring("Barier ".Length).Trim();
-                var handler = new JwtSecurityTokenHandler();
-                var jwtToken = handler.ReadToken(token) as JwtSecurityToken;
+            // Get the Authorization header
+            string authHeader = context.Request.Headers["Authorization"];
 
-                if (jwtToken != null)
-                {
-                    var userId = jwtToken.Claims.First(claim => claim.Type == "UserId").Value;
-                    return userId;
-                }
+            // ✅ If no Bearer token, skip and move to next middleware
+            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                return "0";
             }
-            return "Anonymous";
+
+            // Extract the token
+            string token = authHeader.Substring("Bearer ".Length).Trim();
+
+            // Parse the JWT token
+            var jwtToken = ParseJwtToken(token);
+            if (jwtToken == null)
+            {
+                return "0";
+            }
+
+            // ✅ Check if token is expired
+            var expClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "exp");
+            if (expClaim == null || !long.TryParse(expClaim.Value, out long expValue))
+            {
+                return "0";
+            }
+
+            DateTime tokenExpiry = DateTimeOffset.FromUnixTimeSeconds(expValue).UtcDateTime;
+            if (DateTime.UtcNow >= tokenExpiry)
+            {
+                return "0";
+            }
+
+            // ✅ Retrieve the UserId claim (check both standard and custom claims)
+            var userIdClaim = jwtToken.Claims.FirstOrDefault(c =>
+                c.Type == "UserId" || c.Type == ClaimTypes.NameIdentifier);
+
+            return userIdClaim?.Value ?? "0";
         }
 
+        private JwtSecurityToken ParseJwtToken(string token)
+        {
+            var handler = new JwtSecurityTokenHandler();
+            return handler.ReadToken(token) as JwtSecurityToken;
+        }
         private static async Task<string> ReadRequestBody(HttpRequest request)
         {
             request.EnableBuffering();

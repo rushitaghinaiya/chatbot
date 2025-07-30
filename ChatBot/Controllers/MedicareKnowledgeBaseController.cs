@@ -8,7 +8,8 @@ using System.Text.Json;
 
 namespace ChatBot.Controllers
 {
-    [Route("api/[controller]")]
+
+    [Route("api/v1/[controller]")]
     [ApiController]
     [Produces("application/json")]
     public class MedicareKnowledgeBaseController : ControllerBase
@@ -251,6 +252,7 @@ namespace ChatBot.Controllers
                 }
             });
         }
+
 
         // Gets the list of knowledge bases for a company.
         // Validates input and proxies the request to the Python API.
@@ -495,5 +497,6 @@ namespace ChatBot.Controllers
                 });
             }
         }
+
     }
 }
