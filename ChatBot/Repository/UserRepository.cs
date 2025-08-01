@@ -483,23 +483,22 @@ namespace ChatBot.Repository
             using (var connection = new SqlConnection(_connectionString))
             {
                 var query = @"SELECT 
-                        a.AdminId ,
-                        a.Email,
-                        MAX(l.LoginTime) AS LastActivityTime,
-                        STUFF((
-                            SELECT DISTINCT ', ' + innerLog.Actions
-                            FROM [ChatbotDB].[dbo].[AdminLoginLogs] AS innerLog
-                            WHERE innerLog.AdminId = a.AdminId
-                              AND innerLog.LoginTime >= DATEADD(DAY, -30, GETDATE())
-                            FOR XML PATH(''), TYPE).value('.', 'NVARCHAR(MAX)'), 1, 2, '') AS Actions
-                    FROM 
-                        [ChatbotDB].[dbo].[Admins] a
-                    JOIN 
-                        [ChatbotDB].[dbo].[AdminLoginLogs] l ON a.AdminId = l.AdminId
-                    WHERE 
-                        l.LoginTime >= DATEADD(DAY, -30, GETDATE())
-                    GROUP BY 
-                        a.AdminId, a.Email;";
+                            a.AdminId,
+                            a.Email,
+                            MAX(l.LoginTime) AS LastActivityTime,
+                            STUFF((
+                                SELECT DISTINCT ', ' + dl.Actions
+                                FROM [ChatbotDB].[dbo].[AdminLoginLogs] dl
+                                WHERE dl.AdminId = a.AdminId
+                                  AND dl.LoginTime >= DATEADD(DAY, -30, GETDATE())
+                                FOR XML PATH(''), TYPE
+                            ).value('.', 'NVARCHAR(MAX)'), 1, 2, '') AS Actions
+                        FROM [ChatbotDB].[dbo].[Admins] a
+                        JOIN [ChatbotDB].[dbo].[AdminLoginLogs] l 
+                            ON a.AdminId = l.AdminId
+                        WHERE l.LoginTime >= DATEADD(DAY, -30, GETDATE())
+                        GROUP BY a.AdminId, a.Email;
+                                            ";
 
                 var result = await connection.QueryAsync<AdminLoginLog>(query);
                 return result.ToList();
