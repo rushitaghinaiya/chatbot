@@ -10,7 +10,7 @@ using MySqlX.XDevAPI.Common;
 namespace ChatBot.Controllers
 {
     [ApiController]
-    [Route("api/v1/[controller]")]
+    [Route("v1/[controller]")]
     [EnableCors("allowCors")]
     [Produces("application/json")]
     public class UserManagementController : Controller
