@@ -5,6 +5,7 @@ namespace ChatBot.Models.Services
     public interface IUser
     {
         List<Users> GetUserList();
+        Users GetUserById(int userId);
         Task UpdateSessionAsync(int? userId, string sessionKey, string ip, string agent);
         List<UserSession> GetActiveSessions();
         UserStatsDto GetUserStats();

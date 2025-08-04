@@ -21,11 +21,13 @@ namespace ChatBot.Controllers
         private readonly AppSettings _appSetting;
         private readonly IUserSignUp _userSignUp;
         private readonly IAdmin _admin;
+        private readonly IUser _user;
         private readonly IJwtTokenService _jwtTokenService;
         private readonly ILogger<AdminController> _logger;
 
         public AdminController(
             IUserSignUp userSignUp,
+            IUser user,
             IAdmin admin,
             IJwtTokenService jwtTokenService,
             IOptions<AppSettings> appSettings,
@@ -34,6 +36,7 @@ namespace ChatBot.Controllers
             _appSetting = appSettings.Value;
             _userSignUp = userSignUp;
             _admin = admin;
+            _user = user;
             _jwtTokenService = jwtTokenService;
             _logger = logger;
         }
@@ -214,7 +217,7 @@ namespace ChatBot.Controllers
                 }
 
                 // Get admin user details
-                var adminUser = await Task.Run(() => _userSignUp.IsExistUser(string.Empty), cts.Token);
+                var adminUser = await Task.Run(() =>_user.GetUserById(modelVM.UserId), cts.Token);
 
                 // Verify user is admin
                 if (adminUser == null || adminUser.Role != "admin")

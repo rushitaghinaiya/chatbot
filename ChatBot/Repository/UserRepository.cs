@@ -4,6 +4,7 @@ using Dapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using MySqlX.XDevAPI.Common;
 using System.Data;
 using static ChatBot.Models.Common.AesEncryptionHelper;
 
@@ -26,7 +27,30 @@ namespace ChatBot.Repository
                     var user = connection.QueryAsync<Users>(
                         "SELECT Id, Name, Email, Mobile, Role, IsPremium, CreatedAt, UpdatedAt FROM Users"
                     ).Result.ToList();
+                    foreach (var item in user)
+                    {
+                        item.Mobile = Decrypt(item.Mobile);
+                    }
+                    return user;
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }
+        }
 
+        public Users GetUserById(int userId)
+        {
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    var user = connection.QueryAsync<Users>(
+                        "SELECT Id, Name, Email, Mobile, Role, IsPremium, CreatedAt, UpdatedAt FROM Users where Id=@UserId",
+                        param: new {UserId=userId}
+                    ).Result.FirstOrDefault();
+                    user.Mobile = Decrypt(user.Mobile);
                     return user;
                 }
                 catch (Exception)
