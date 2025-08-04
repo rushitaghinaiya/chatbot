@@ -91,15 +91,6 @@ namespace ChatBot.Controllers
                     });
                 }
 
-                var adminLoginLog = new AdminLoginLog
-                {
-                    AdminId = users1.Id,
-                    LoginTime = DateTime.Now,
-                    Actions = "Login"
-                };
-
-                _userSignUp.SaveAdminLoginLog(adminLoginLog);
-
                 var otpSent = await MobileOtpAsync(users1);
                 if (otpSent)
                 {

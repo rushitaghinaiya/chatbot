@@ -15,16 +15,19 @@ namespace ChatBot.Controllers
     {
         private readonly AppSettings _appSetting;
         private readonly ISetting _setting;
+        private readonly IUserSignUp _userSignUp;
         private readonly ILogger<QuestionController> _logger;
 
         public SettingController(
             ISetting setting,
+            IUserSignUp userSignUp,
             IOptions<AppSettings> appSettings,
             ILogger<QuestionController> logger)
         {
             _appSetting = appSettings.Value;
             _setting = setting;
             _logger = logger;
+            _userSignUp = userSignUp;
         }
         [HttpGet("get_languages")]
         public async Task<IActionResult> GetLanguage()
@@ -46,6 +49,14 @@ namespace ChatBot.Controllers
             {
                  updated = _setting.UpdateLanguage(language);
             }
+            var adminLoginLog = new AdminLoginLog
+            {
+                AdminId = Convert.ToInt16(model[0].updatedBy),
+                LoginTime = DateTime.Now,
+                Actions = "Language settings"
+            };
+            if (updated)
+                _userSignUp.SaveAdminLoginLog(adminLoginLog);
             return updated ? Ok(new { message = "Language updated successfully.", status = true }) : BadRequest(new { message = "Update failed.", status = false });
         }
 
@@ -85,6 +96,14 @@ namespace ChatBot.Controllers
         public IActionResult UpdateVoiceSettings(VoiceAccessibilitySettings model)
         {
             var updated = _setting.UpdateVoiceSettings(model);
+            var adminLoginLog = new AdminLoginLog
+            {
+                AdminId = Convert.ToInt16(model.UpdatedBy),
+                LoginTime = DateTime.Now,
+                Actions = "Voice & Accessibility settings"
+            };
+            if (updated)
+                _userSignUp.SaveAdminLoginLog(adminLoginLog);
             return updated ? Ok(new { message = "Voice setting updated successfully.", status = true }) : BadRequest(new { message = "Update failed.", status = false });
         }
 
@@ -105,6 +124,15 @@ namespace ChatBot.Controllers
         public IActionResult UpdateSystemLimits(SystemLimits model)
         {
             var updated = _setting.UpdateSystemLimits(model);
+            var adminLoginLog = new AdminLoginLog
+            {
+                AdminId = Convert.ToInt16( model.UpdatedBy),
+                LoginTime = DateTime.Now,
+                Actions = "Query limit update"
+            };
+            if (updated)
+                _userSignUp.SaveAdminLoginLog(adminLoginLog);
+
             return updated ? Ok(new { message = "System limit updated successfully.", status = true }) : BadRequest(new { message = "Update failed.", status = false });
         }
     }
