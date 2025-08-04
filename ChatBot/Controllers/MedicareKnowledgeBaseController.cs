@@ -9,7 +9,7 @@ using System.Text.Json;
 namespace ChatBot.Controllers
 {
 
-    [Route("api/v1/[controller]")]
+    [Route("v1/[controller]")]
     [ApiController]
     [Produces("application/json")]
     public class MedicareKnowledgeBaseController : ControllerBase

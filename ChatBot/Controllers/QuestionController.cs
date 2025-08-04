@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 namespace ChatBot.Controllers
 {
     [ApiController]
-    [Route("api/v1/[controller]/[action]")]
+    [Route("v1/[controller]/[action]")]
     [EnableCors("allowCors")]
     [Produces("application/json")]
     public class QuestionController : ControllerBase
