@@ -23,7 +23,7 @@ namespace ChatBot.Middleware
         public async Task InvokeAsync(HttpContext context)
         {
             string requestPath = context.Request.Path.ToString();
-            string[] pathsToCheck = new string[] { "SignUp", "RefreshToken", };
+            string[] pathsToCheck = new string[] { "SignUp", "RefreshToken", "AdminLogin" };
 
             if (!pathsToCheck.Any(path => requestPath.Contains(path)))
             {
@@ -61,7 +61,7 @@ namespace ChatBot.Middleware
         private string GetApiName(HttpContext context)
         {
             // Split the endpoint path by '/'
-            string[] parts = context.Request.Path.ToString().Replace("/api/v1/", "").Split('/');
+            string[] parts = context.Request.Path.ToString().Replace("/v1/", "").Split('/');
 
             return $"{parts[0]}/{parts[1]}";
         }
