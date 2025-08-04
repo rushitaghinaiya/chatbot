@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ChatBot.Controllers
 {
-    [Route("api/v1/[controller]")]
+    [Route("v1/[controller]")]
     [ApiController]
     [Authorize] // All endpoints in this controller require JWT authentication
     public class MedicinesController : ControllerBase
