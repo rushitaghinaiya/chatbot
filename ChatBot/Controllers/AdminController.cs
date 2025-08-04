@@ -231,7 +231,7 @@ namespace ChatBot.Controllers
                 {
                     AdminId = adminUser.Id,
                     LoginTime = DateTime.UtcNow,
-                    Actions = "OTP_VERIFIED"
+                    Actions = "Login"
                 };
 
                 _userSignUp.SaveAdminLoginLog(adminLoginLog);
