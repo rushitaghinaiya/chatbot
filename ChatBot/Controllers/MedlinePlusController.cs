@@ -7,11 +7,13 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using System.Text;
 using System.Diagnostics;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ChatBot.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize] // Requires JWT authentication
     public class MedlinePlusController : ControllerBase
     {
         private readonly HttpClient _httpClient;

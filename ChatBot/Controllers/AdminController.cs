@@ -12,7 +12,7 @@ using VRMDBCommon2023;
 
 namespace ChatBot.Controllers
 {
-    [ApiController]
+    [ApiController] 
     [Route("v1/[controller]/[action]")]
     [EnableCors("allowCors")]
     [Produces("application/json")]

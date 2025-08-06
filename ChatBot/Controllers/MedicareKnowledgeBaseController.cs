@@ -10,7 +10,7 @@ namespace ChatBot.Controllers
 {
 
     [Route("v1/[controller]")]
-    [ApiController]
+    [ApiController] [Authorize] // Requires JWT authentication
     [Produces("application/json")]
     public class MedicareKnowledgeBaseController : ControllerBase
     {

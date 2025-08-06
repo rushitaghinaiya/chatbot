@@ -2,6 +2,7 @@
 using ChatBot.Models.Services;
 using ChatBot.Models.ViewModels;
 using ChatBot.Repository;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -9,7 +10,8 @@ using MySqlX.XDevAPI.Common;
 
 namespace ChatBot.Controllers
 {
-    [ApiController]
+    [ApiController] 
+    [Authorize] // Requires JWT authentication
     [Route("v1/[controller]")]
     [EnableCors("allowCors")]
     [Produces("application/json")]

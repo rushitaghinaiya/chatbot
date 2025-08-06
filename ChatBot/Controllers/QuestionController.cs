@@ -1,13 +1,15 @@
 ﻿using ChatBot.Models.Common;
 using ChatBot.Models.Services;
 using ChatBot.Models.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
 namespace ChatBot.Controllers
 {
-    [ApiController]
+    [ApiController] 
+    [Authorize] // Requires JWT authentication
     [Route("v1/[controller]/[action]")]
     [EnableCors("allowCors")]
     [Produces("application/json")]

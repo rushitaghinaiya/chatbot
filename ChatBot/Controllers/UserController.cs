@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 namespace ChatBot.Controllers
 {
     [ApiController]
+    [Authorize] // Requires JWT authentication
     [Route("v1/[controller]")]
     [EnableCors("allowCors")]
     [Produces("application/json")]

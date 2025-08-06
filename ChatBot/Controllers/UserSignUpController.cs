@@ -15,7 +15,6 @@ namespace ChatBot.Controllers
     [Route("v1/[controller]/[action]")]
     [EnableCors("allowCors")]
     [Produces("application/json")]
-    [AllowAnonymous]
     public class UserSignUpController : ControllerBase
     {
         private readonly AppSettings _appSetting;
