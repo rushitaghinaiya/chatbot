@@ -1,6 +1,7 @@
 ﻿using ChatBot.Models.Configuration;
 using ChatBot.Models.Responses;
 using ChatBot.Models.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -10,7 +11,8 @@ namespace ChatBot.Controllers
 {
 
     [Route("v1/[controller]")]
-    [ApiController] [Authorize] // Requires JWT authentication
+    [ApiController] 
+    [Authorize] // Requires JWT authentication
     [Produces("application/json")]
     public class MedicareKnowledgeBaseController : ControllerBase
     {
