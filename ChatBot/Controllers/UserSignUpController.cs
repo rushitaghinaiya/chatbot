@@ -12,10 +12,9 @@ using VRMDBCommon2023;
 namespace ChatBot.Controllers
 {
     [ApiController]
-    [Route("chatbot/v1/[controller]/[action]")]
+    [Route("v1/[controller]/[action]")]
     [EnableCors("allowCors")]
     [Produces("application/json")]
-    [AllowAnonymous]
     public class UserSignUpController : ControllerBase
     {
         private readonly AppSettings _appSetting;

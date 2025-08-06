@@ -12,7 +12,7 @@
         public List<string> GroupNames { get; set; } = new();
         public List<string> MeshTerms { get; set; } = new();
         public DateTime LastUpdated { get; set; }
-        public string Source { get; set; } = string.Empty;
+        public string DataSource { get; set; } = string.Empty;
         public int Rank { get; set; }
     }
 }

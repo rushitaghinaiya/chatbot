@@ -1,8 +1,12 @@
-﻿using ChatBot.Models.Services;
+using ChatBot.Models.Services;
 using ChatBot.Models.ViewModels;
 using Dapper;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
+using MySqlX.XDevAPI.Common;
 using System.Data;
+using static ChatBot.Models.Common.AesEncryptionHelper;
 
 namespace ChatBot.Repository
 {
@@ -23,7 +27,30 @@ namespace ChatBot.Repository
                     var user = connection.QueryAsync<Users>(
                         "SELECT Id, Name, Email, Mobile, Role, IsPremium, CreatedAt, UpdatedAt FROM Users"
                     ).Result.ToList();
+                    foreach (var item in user)
+                    {
+                        item.Mobile = Decrypt(item.Mobile);
+                    }
+                    return user;
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }
+        }
 
+        public Users GetUserById(int userId)
+        {
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    var user = connection.QueryAsync<Users>(
+                        "SELECT Id, Name, Email, Mobile, Role, IsPremium, CreatedAt, UpdatedAt FROM Users where Id=@UserId",
+                        param: new {UserId=userId}
+                    ).Result.FirstOrDefault();
+                    user.Mobile = Decrypt(user.Mobile);
                     return user;
                 }
                 catch (Exception)
@@ -39,7 +66,7 @@ namespace ChatBot.Repository
                 try
                 {
                     var user = connection.QueryAsync<Users>(
-                        "SELECT * FROM users u INNER JOIN refreshtoken  rt ON u.userid= rt.userId WHERE rt.Token=@Token ;", param:new{Token=token }
+                        "SELECT * FROM users u INNER JOIN refreshtoken  rt ON u.userid= rt.userId WHERE rt.Token=@Token ;", param: new { Token = token }
                     ).Result.FirstOrDefault();
 
                     return user;
@@ -149,5 +176,426 @@ namespace ChatBot.Repository
                 }
             }
         }
+        public async Task UpdateSessionAsync(int? userId, string sessionKey, string ip, string agent)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    var query = @"
+                MERGE INTO UserSessions AS target
+                USING (SELECT @SessionKey AS SessionKey) AS source
+                ON target.SessionId = source.SessionKey
+                WHEN MATCHED THEN 
+                    UPDATE SET LastActiveAt = GETDATE(), IPAddress = @IpAddress, UserAgent = @UserAgent
+                WHEN NOT MATCHED THEN
+                    INSERT (UserId, SessionId, LastActiveAt, IPAddress, UserAgent)
+                    VALUES (@UserId, @SessionKey, GETDATE(), @IpAddress, @UserAgent);";
+
+                    await connection.ExecuteAsync(query, new
+                    {
+                        UserId = userId,
+                        SessionKey = sessionKey,
+                        IpAddress = ip,
+                        UserAgent = agent
+                    });
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }
+        }
+
+        public List<UserSession> GetActiveSessions()
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    var sessions = connection.QueryAsync<UserSession>(
+                        @"SELECT Id, UserId, SessionId, LastActiveAt, IPAddress, UserAgent
+                  FROM UserSessions
+                  WHERE LastActiveAt >= DATEADD(MINUTE, -10, GETDATE())
+                  ORDER BY LastActiveAt DESC"
+                    ).Result.ToList();
+
+                    return sessions;
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }
+        }
+
+        public UserStatsDto GetUserStats()
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    var totalUsers = connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM Users").Result;
+
+                    var lastMonthCutoff = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+                    var usersUntilLastMonth = connection.ExecuteScalarAsync<int>(
+                        "SELECT COUNT(*) FROM Users WHERE CreatedAt < @LastMonth",
+                        new { LastMonth = lastMonthCutoff }
+                    ).Result;
+
+                    // Calculate % change
+                    int newUsersThisMonth = totalUsers - usersUntilLastMonth;
+                    double percentageChange = usersUntilLastMonth == 0
+                        ? 100
+                        : ((double)newUsersThisMonth / usersUntilLastMonth) * 100;
+
+                    return new UserStatsDto
+                    {
+                        TotalUsers = totalUsers,
+                        PercentageChange = Math.Round(percentageChange, 2)
+                    };
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }
+        }
+
+        public async Task<(int todayCount, int lastMonthCount, double percentageChange)> GetTodayQueryStatsAsync()
+        {
+            var today = DateTime.Today;
+            var lastMonthStart = today.AddMonths(-1);
+            var lastMonthEnd = today.AddDays(-1); // yesterday
+
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                string sql = @"
+            SELECT 
+                COUNT(CASE WHEN CAST(Timestamp AS DATE) = @Today THEN 1 END) AS TodayCount,
+                COUNT(CASE WHEN CAST(Timestamp AS DATE) BETWEEN @LastMonthStart AND @LastMonthEnd THEN 1 END) AS LastMonthCount
+            FROM QueryHistory";
+
+                var result = await connection.QueryFirstOrDefaultAsync<dynamic>(sql, new
+                {
+                    Today = today,
+                    LastMonthStart = lastMonthStart,
+                    LastMonthEnd = lastMonthEnd
+                });
+
+                int todayCount = result.TodayCount;
+                int lastMonthCount = result.LastMonthCount;
+
+                double percentChange = 0;
+                if (lastMonthCount > 0)
+                {
+                    percentChange = Math.Round(((todayCount - lastMonthCount) / (double)lastMonthCount) * 100, 2);
+                }
+                
+
+                return (todayCount, lastMonthCount, percentChange);
+            }
+        }
+
+        public async Task<(double avgResponseTime, double lastMonthAvg, double percentageChange)> GetAverageResponseTimeAsync()
+        {
+            var today = DateTime.Today;
+            var lastMonthStart = today.AddMonths(-1);
+            var lastMonthEnd = today.AddDays(-1);
+
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                string sql = @"
+            SELECT
+                AVG(CASE 
+                    WHEN ResponseTime > 0 AND CAST(Timestamp AS DATE) BETWEEN @LastMonthStart AND @LastMonthEnd 
+                    THEN ResponseTime 
+                END) AS LastMonthAvg,
+                
+                AVG(CASE 
+                    WHEN ResponseTime > 0 AND CAST(Timestamp AS DATE) = @Today 
+                    THEN ResponseTime 
+                END) AS TodayAvg
+            FROM QueryHistory";
+
+                var result = await connection.QueryFirstOrDefaultAsync<dynamic>(sql, new
+                {
+                    Today = today,
+                    LastMonthStart = lastMonthStart,
+                    LastMonthEnd = lastMonthEnd
+                });
+
+                double todayAvg = Math.Round((double)(result?.TodayAvg ?? 0m), 2);
+                double lastMonthAvg = Math.Round((double)(result?.LastMonthAvg ?? 0m), 2);
+
+                double percentChange = 0;
+                if (lastMonthAvg > 0)
+                {
+                    percentChange = Math.Round(((todayAvg - lastMonthAvg) / lastMonthAvg) * 100, 2);
+                }
+
+                return (todayAvg, lastMonthAvg, percentChange);
+            }
+        }
+
+        public async Task<SessionStatsDto> GetSessionStats()
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    var today = DateTime.Today;
+
+                    // Current period: 25th of previous month to 24th of this month
+                    var currentStart = new DateTime(today.Year, today.Month, 25).AddMonths(-1);
+                    var currentEnd = new DateTime(today.Year, today.Month, 24);
+
+                    // Last month period: one month before current
+                    var lastStart = currentStart.AddMonths(-1);
+                    var lastEnd = currentEnd.AddMonths(-1);
+
+                    string sql = @"
+                            SELECT COUNT(DISTINCT UserId) 
+                            FROM UserSessions 
+                            WHERE LastActiveAt BETWEEN @Start AND @End";
+
+                    int currentUserCount = connection.ExecuteScalar<int>(sql, new { Start = currentStart, End = currentEnd });
+                    int lastUserCount = connection.ExecuteScalar<int>(sql, new { Start = lastStart, End = lastEnd });
+
+                    double percentageChange = lastUserCount == 0
+                        ? 100
+                        : ((double)(currentUserCount - lastUserCount) / lastUserCount) * 100;
+
+                    return new SessionStatsDto
+                    {
+                        TotalSessions = currentUserCount,
+                        PercentageChange = Math.Round(percentageChange, 2)
+                    };
+                }
+                catch
+                {
+                    throw;
+                }
+            }
+        }
+
+
+        public List<UserChatbotStatsDto> GetUserChatbotStats()
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    var result = connection.QueryAsync<UserChatbotStatsDto>(
+                        @"SELECT 
+                    CONCAT('U', RIGHT('000' + CAST(U.Id AS VARCHAR), 3)) AS UserId,
+                    U.Mobile,
+                    CASE WHEN U.IsPremium = 1 THEN 'Paid' ELSE 'Free' END AS Type,
+                    CAST(COUNT(Q.QueryId) AS VARCHAR) + '/' +
+                        CASE WHEN U.IsPremium = 1 THEN '∞' ELSE '10' END AS Queries,
+                    0 AS Family,
+                    CAST(SUM(ISNULL(Q.ResponseTime, 0)) / 60000 AS INT) AS TimeInMin
+                  FROM Users U
+                  LEFT JOIN queryhistory Q ON U.Id = Q.UserId
+                  GROUP BY U.Id, U.Mobile, U.IsPremium
+                  ORDER BY U.Id;"
+                    ).Result.ToList();
+
+                    foreach (var item in result)
+                    {
+                        item.Mobile = Decrypt(item.Mobile);
+                    }
+
+                    return result;
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }
+        }
+        public async Task<List<QueryTopicDistributionDto>> GetQueryTopicDistribution()
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                var topicCounts = connection.Query<QueryTopicDistributionDto>(
+                    @"SELECT 
+                    Topic, 
+                    COUNT(*) AS QueryCount
+                  FROM QueryHistory
+                  WHERE  ISNULL(LTRIM(RTRIM(Topic)), '') <> ''
+                  GROUP BY Topic
+                  ORDER BY QueryCount DESC"
+                ).ToList();
+
+                int total = topicCounts.Sum(q => q.QueryCount);
+
+                foreach (var topic in topicCounts)
+                {
+                    topic.Percentage = total == 0 ? 0 : Math.Round((double)topic.QueryCount * 100 / total, 2);
+                }
+
+                return topicCounts;
+            }
+        }
+
+
+        public async Task<QueryStatusDistribution> GetQueryStatusDistributionAsync()
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                var sql = @"
+                SELECT 
+                    SUM(CASE WHEN Status = 'Answered' THEN 1 ELSE 0 END) AS AnsweredCount,
+                    SUM(CASE WHEN Status = 'Unanswered' THEN 1 ELSE 0 END) AS UnansweredCount,
+                    SUM(CASE WHEN Status = 'Incomplete' THEN 1 ELSE 0 END) AS IncompleteCount
+                FROM QueryHistory";
+
+                return connection.QuerySingle<QueryStatusDistribution>(sql);
+            }
+        }
+
+        public async Task<List<UserTypeDistribution>> GetUserTypeDistributionAsync()
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                var query = @"
+            SELECT 
+                CASE 
+                    WHEN IsPremium = 1 THEN 'Paid Users'
+                    ELSE 'Free Users'
+                END AS UserType,
+                COUNT(*) AS Count,
+                ROUND(100.0 * COUNT(*) / (SELECT COUNT(*) FROM Users), 2) AS Percentage
+            FROM Users
+            GROUP BY IsPremium";
+
+                var result = await connection.QueryAsync<UserTypeDistribution>(query);
+                return result.ToList();
+            }
+        }
+
+        public async Task<AverageMetricsDto> GetAverageMetricsAsync()
+        {
+            using var connection = new SqlConnection(_connectionString);
+
+            var AvgDuration = await connection.QueryFirstOrDefaultAsync<double?>(@"
+                SELECT 
+                ROUND(AVG(CAST(S.totalTimeSpent AS FLOAT)) / 60, 1) AS AvgDuration
+                FROM BotSessions S
+                WHERE CAST(S.StartTime AS DATE) = CAST(GETDATE() AS DATE)
+            ");
+
+            var AvgQueries = await connection.QueryFirstOrDefaultAsync<double?>(@"
+                SELECT 
+                ROUND(CAST(COUNT(Q.QueryId) AS FLOAT) / NULLIF(COUNT(DISTINCT Q.UserId), 0), 1) AS AvgQueries
+                FROM QueryHistory Q
+                WHERE CAST(Q.Timestamp AS DATE) = CAST(GETDATE() AS DATE)
+            ");
+
+
+            return new AverageMetricsDto
+            {
+                AvgSessionDuration = $"{AvgDuration} min",
+                AvgQueriesPerUser = Convert.ToDouble(AvgQueries),
+                AvgFamilyMembersPerUser = 0
+            };
+        }
+
+        public async Task<List<AdminLoginLog>> GetAdminLogsAndStatusAsync()
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                var query = @"SELECT 
+                            a.AdminId,
+                            a.Email,
+                            MAX(l.LoginTime) AS LastActivityTime,
+                            STUFF((
+                                SELECT DISTINCT ', ' + dl.Actions
+                                FROM [ChatbotDB].[dbo].[AdminLoginLogs] dl
+                                WHERE dl.AdminId = a.AdminId
+                                  AND dl.LoginTime >= DATEADD(DAY, -30, GETDATE())
+                                FOR XML PATH(''), TYPE
+                            ).value('.', 'NVARCHAR(MAX)'), 1, 2, '') AS Actions
+                        FROM [ChatbotDB].[dbo].[Admins] a
+                        JOIN [ChatbotDB].[dbo].[AdminLoginLogs] l 
+                            ON a.AdminId = l.AdminId
+                        WHERE l.LoginTime >= DATEADD(DAY, -30, GETDATE())
+                        GROUP BY a.AdminId, a.Email;
+                                            ";
+
+                var result = await connection.QueryAsync<AdminLoginLog>(query);
+                return result.ToList();
+            }
+        }
+
+        public async Task<bool> SaveUserSession(BotSession botSession)
+        {
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                using (SqlTransaction transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        var sessionId = await connection.QuerySingleAsync<int>(@"
+                    INSERT INTO BotSessions(UserId, StartTime, EndTime,TotalTimeSpent, CreatedAt)
+                    VALUES(@user_id, @start_time, @end_time,@totalTimeSpent, @created_at);
+                    SELECT CAST(SCOPE_IDENTITY() as int);",
+                            new
+                            {
+                                user_id = botSession.UserId,
+                                start_time = botSession.StartTime,
+                                end_time = botSession.EndTime,
+                                created_at = DateTime.Now,
+                                totalTimeSpent = botSession.TotalTimeSpent,
+                            }, transaction: transaction);
+
+                        transaction.Commit();
+                        return sessionId > 0;
+                    }
+                    catch (Exception)
+                    {
+                        transaction.Rollback();
+                        return false;
+                    }
+                }
+            }
+        }
+
+        public async Task<bool> SaveQueryHistory(QueryHistoryDto dto)
+        {
+            var query = new
+            {
+                dto.UserId,
+                dto.QueryText,
+                dto.ResponseText,
+                dto.ResponseTime,
+                dto.Topic,
+                Timestamp = DateTime.Now,
+                dto.Status
+            };
+            try
+            {
+                var sql = @"INSERT INTO queryhistory 
+                ( UserId, QueryText, ResponseText,  ResponseTime, topic, timestamp, status)
+                VALUES 
+                (@UserId, @QueryText, @ResponseText, @ResponseTime, @Topic, @Timestamp, @Status);
+                 SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                using (var connection = new SqlConnection(_connectionString))
+                {
+                    var queryId = await connection.QuerySingleAsync<int>(sql, query);
+                    return queryId > 0;
+                }
+
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+
     }
 }

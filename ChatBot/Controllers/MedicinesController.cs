@@ -7,8 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ChatBot.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
+    [Route("v1/[controller]")]
+    [ApiController] 
     [Authorize] // All endpoints in this controller require JWT authentication
     public class MedicinesController : ControllerBase
     {
@@ -179,67 +179,5 @@ namespace ChatBot.Controllers
         }
     }
 
-    // Example of a mixed controller with both protected and public endpoints
-    [Route("api/[controller]")]
-    [ApiController]
-    public class MixedAccessController : ControllerBase
-    {
-        private readonly ILogger<MixedAccessController> _logger;
-
-        public MixedAccessController(ILogger<MixedAccessController> logger)
-        {
-            _logger = logger;
-        }
-
-        /// <summary>
-        /// Public endpoint - no authentication required.
-        /// </summary>
-        [HttpGet("public/health")]
-        public IActionResult PublicHealthCheck()
-        {
-            return Ok(new { Status = "Healthy", Timestamp = DateTime.UtcNow });
-        }
-
-        /// <summary>
-        /// Protected endpoint - requires JWT authentication.
-        /// </summary>
-        [HttpGet("protected/user-info")]
-        [Authorize]
-        public IActionResult GetUserInfo()
-        {
-            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
-            var role = User.FindFirst("role")?.Value;
-
-            return Ok(new
-            {
-                UserId = userId,
-                Email = email,
-                Role = role,
-                AccessedAt = DateTime.UtcNow
-            });
-        }
-
-        /// <summary>
-        /// Admin-only endpoint.
-        /// </summary>
-        [HttpGet("admin/system-info")]
-        [Authorize]
-        public IActionResult GetSystemInfo()
-        {
-            var userRole = User.FindFirst("role")?.Value;
-
-            if (userRole != "admin")
-            {
-                return StatusCode(403, new { Message = "Admin access required" });
-            }
-
-            return Ok(new
-            {
-                SystemInfo = "Admin access granted",
-                ServerTime = DateTime.UtcNow,
-                Environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
-            });
-        }
-    }
+   
 }

@@ -11,13 +11,13 @@ using System.Text;
 
 namespace ChatBot.Repository
 {
-    public class JwtTokenService : IJwtTokenService
+    public class JwtTokenRepository : IJwtTokenService
     {
         private readonly AppSettings _jwtConfig;
-        private readonly ILogger<JwtTokenService> _logger;
+        private readonly ILogger<JwtTokenRepository> _logger;
         private readonly IUser _userService;
 
-        public JwtTokenService(IOptions<AppSettings> jwtConfig, ILogger<JwtTokenService> logger, IUser userService)
+        public JwtTokenRepository(IOptions<AppSettings> jwtConfig, ILogger<JwtTokenRepository> logger, IUser userService)
         {
             _jwtConfig = jwtConfig.Value;
             _logger = logger;

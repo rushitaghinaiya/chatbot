@@ -12,8 +12,8 @@ using VRMDBCommon2023;
 
 namespace ChatBot.Controllers
 {
-    [ApiController]
-    [Route("chatbot/v1/[controller]/[action]")]
+    [ApiController] 
+    [Route("v1/[controller]/[action]")]
     [EnableCors("allowCors")]
     [Produces("application/json")]
     public class AdminController : ControllerBase
@@ -21,11 +21,13 @@ namespace ChatBot.Controllers
         private readonly AppSettings _appSetting;
         private readonly IUserSignUp _userSignUp;
         private readonly IAdmin _admin;
+        private readonly IUser _user;
         private readonly IJwtTokenService _jwtTokenService;
         private readonly ILogger<AdminController> _logger;
 
         public AdminController(
             IUserSignUp userSignUp,
+            IUser user,
             IAdmin admin,
             IJwtTokenService jwtTokenService,
             IOptions<AppSettings> appSettings,
@@ -34,6 +36,7 @@ namespace ChatBot.Controllers
             _appSetting = appSettings.Value;
             _userSignUp = userSignUp;
             _admin = admin;
+            _user = user;
             _jwtTokenService = jwtTokenService;
             _logger = logger;
         }
@@ -87,15 +90,6 @@ namespace ChatBot.Controllers
                         ErrorCode = "INSUFFICIENT_PRIVILEGES"
                     });
                 }
-
-                var adminLoginLog = new AdminLoginLog
-                {
-                    AdminId = users1.Id,
-                    LoginTime = DateTime.Now,
-                    Actions = "Login"
-                };
-
-                _userSignUp.SaveAdminLoginLog(adminLoginLog);
 
                 var otpSent = await MobileOtpAsync(users1);
                 if (otpSent)
@@ -214,7 +208,7 @@ namespace ChatBot.Controllers
                 }
 
                 // Get admin user details
-                var adminUser = await Task.Run(() => _userSignUp.IsExistUser(string.Empty), cts.Token);
+                var adminUser = await Task.Run(() =>_user.GetUserById(modelVM.UserId), cts.Token);
 
                 // Verify user is admin
                 if (adminUser == null || adminUser.Role != "admin")
@@ -237,7 +231,7 @@ namespace ChatBot.Controllers
                 {
                     AdminId = adminUser.Id,
                     LoginTime = DateTime.UtcNow,
-                    Actions = "OTP_VERIFIED"
+                    Actions = "Login"
                 };
 
                 _userSignUp.SaveAdminLoginLog(adminLoginLog);

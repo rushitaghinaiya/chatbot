@@ -8,7 +8,9 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using VRMDBCommon2023;
 using Serilog;
+using ChatBot.Middleware;
 using System.Text;
+using ChatBot.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
@@ -18,19 +20,21 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.File("Logs/log.txt", rollingInterval: RollingInterval.Day)
     .CreateLogger();
 
-// Add services to the container.
+// Add services to the container
 builder.Services.AddHttpClient<MedlinePlusController>();
 
-// Register repositories with SQL Server connection string
 builder.Services.AddTransient<IUserSignUp>(s => new UserSignupRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IQuestion>(s => new QuestionRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IAdmin>(s => new AdminRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
+builder.Services.AddTransient<IApiLogService>(s => new ApiLogRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IMedicine>(s => new MedicineRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
+builder.Services.AddTransient<ISetting>(s => new SettingRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IUser>(s => new UserRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
+builder.Services.AddTransient<IUserMgmtService>(s => new UserMgmtRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IExceptionLog>(s => new ExceptionLogRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 
 // Register JWT Token Service
-builder.Services.AddTransient<IJwtTokenService, JwtTokenService>();
+builder.Services.AddTransient<IJwtTokenService, JwtTokenRepository>();
 
 // Configure AppSettings
 builder.Services.Configure<AppSettings>(configuration.GetSection("ApplicationSettings"));
@@ -79,10 +83,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 // Validate configuration options
-var medicareConfigOptions = builder.Services.AddOptions<MedicareConfig>()
+var medicareConfigOptions = builder.Services.AddOptions<MedicareConfig>();
+builder.Services.Configure<MedicareConfig>(builder.Configuration.GetSection(MedicareConfig.SectionName));
+builder.Services.AddSingleton(builder.Services.AddOptions<MedicareConfig>()
     .Bind(builder.Configuration.GetSection(MedicareConfig.SectionName))
-    .ValidateDataAnnotations();
-builder.Services.AddSingleton(medicareConfigOptions);
+    .ValidateDataAnnotations());
 
 var jwtConfigOptions = builder.Services.AddOptions<AppSettings>()
     .Bind(builder.Configuration.GetSection(AppSettings.SectionName))
@@ -91,7 +96,7 @@ builder.Services.AddSingleton(jwtConfigOptions);
 
 builder.Services.AddControllers();
 
-// Swagger/OpenAPI configuration with JWT support
+// Swagger/OpenAPI configuration
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -128,7 +133,6 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 
-    // Include XML comments for better documentation
     var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     if (File.Exists(xmlPath))
@@ -137,12 +141,12 @@ builder.Services.AddSwaggerGen(c =>
     }
 });
 
-// CORS configuration
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("allowCors", policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
+        policy.WithOrigins("https://chat.icare.life/app/", "https://chat.icare.life/admin/")
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
@@ -153,27 +157,28 @@ builder.Host.UseSerilog();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
+// Always enable Swagger
 app.UseSwagger();
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ChatBot API V1");
-    c.RoutePrefix = "swagger";
-});
+app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 app.UseCors("allowCors");
+app.UseMiddleware<SessionTrackingMiddleware>();
+app.UseMiddleware<RequestLoggingMiddleware>();
+
 
 // Add Authentication and Authorization middleware
 app.UseAuthentication();
+app.UseMiddleware<SessionTrackingMiddleware>();
+app.UseMiddleware<RequestLoggingMiddleware>();
+
 app.UseAuthorization();
 
 app.MapControllers();
-
 // Basic route for testing logging
 app.MapGet("/", () =>
 {
     Log.Information("Home page visited at {Time}", DateTime.Now);
     return "Hello, ChatBot API with JWT Authentication!";
 });
-
 app.Run();
