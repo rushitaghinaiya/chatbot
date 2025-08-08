@@ -177,6 +177,69 @@ namespace ChatBot.Controllers
         }
 
         /// <summary>
+        /// Retrieves questions by group ID.
+        /// </summary>
+        /// <param name="id">The group ID to filter questions.</param>
+        /// <returns>A list of questions for the specified group ID.</returns>
+        [HttpGet]
+        [ProducesResponseType(typeof(ApiResponseVM<List<Question>>), 200)]
+        [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
+        [ProducesResponseType(typeof(ApiResponseVM<object>), 404)]
+        [ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
+        public async Task<IActionResult> GetQuestionsList()
+        {
+            try
+            {
+              
+
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+
+                var questions = await Task.Run(() => _question.GetQuestionsList(), cts.Token);
+
+                if (questions == null || !questions.Any())
+                {
+                    _logger.LogWarning("No questions found");
+                    return NotFound(new ApiResponseVM<object>
+                    {
+                        Success = false,
+                        Message = "No questions found for the specified group",
+                        ErrorCode = "NOT_FOUND"
+                    });
+                }
+
+                _logger.LogInformation("Successfully retrieved {Count} questions ",
+                    questions.Count);
+
+                return Ok(new ApiResponseVM<List<Question>>
+                {
+                    Success = true,
+                    Data = questions,
+                    Message = $"Successfully retrieved {questions.Count} questions"
+                });
+            }
+            catch (TaskCanceledException)
+            {
+                _logger.LogError("Get questions request timed out ");
+                return StatusCode(408, new ApiResponseVM<object>
+                {
+                    Success = false,
+                    Message = "Request timed out",
+                    ErrorCode = "TIMEOUT"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving question");
+                return StatusCode(500, new ApiResponseVM<object>
+                {
+                    Success = false,
+                    Message = "An error occurred while retrieving questions",
+                    ErrorCode = "INTERNAL_ERROR"
+                });
+            }
+        }
+
+        /// <summary>
         /// Creates a new question in the specified group.
         /// </summary>
         /// <param name="question">The question object to create.</param>

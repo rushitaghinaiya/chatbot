@@ -146,7 +146,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("allowCors", policy =>
     {
-        policy.WithOrigins("https://chat.icare.life/app/", "https://chat.icare.life/admin/")
+        policy.WithOrigins("https://chat.icare.life/app/", "https://chat.icare.life/admin/", "http://localhost:4200")
               .AllowAnyMethod()
               .AllowAnyHeader();
     });

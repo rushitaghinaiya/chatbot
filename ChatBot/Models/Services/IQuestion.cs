@@ -6,5 +6,6 @@ namespace ChatBot.Models.Services
     {
         List<Question> GetQuestionGroup();
         List<Question> GetQuestionsById(int id);
+        List<Question> GetQuestionsList();
     }
 }

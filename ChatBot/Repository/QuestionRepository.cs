@@ -54,5 +54,23 @@ namespace ChatBot.Repository
                 }
             }
         }
+
+        public List<Question> GetQuestionsList()
+        {
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    var questions = connection.QueryAsync<Question>(
+                        "SELECT Id, GroupId, Text,Value, Category, IsActive, CreatedAt, UpdatedAt FROM Questions WHERE IsActive = 1").Result.ToList();
+
+                    return questions;
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }
+        }
     }
 }
