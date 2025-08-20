@@ -39,15 +39,126 @@ namespace ChatBot.Controllers
         /// </summary>
         /// <param name="userVM">User view model containing mobile number and email.</param>
         /// <returns>Returns success response if OTP sent successfully, otherwise error response.</returns>
+        //[HttpPost]
+        //[ProducesResponseType(typeof(ApiResponseVM<Users>), 200)]
+        //[ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
+        //[ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
+        //public async Task<IActionResult> SignUp([FromBody] UserVM userVM)
+        //{
+        //    try
+        //    {
+        //        _logger.LogInformation("User signup attempt for mobile: {Mobile}", userVM?.Mobile);
+
+        //        if (userVM == null)
+        //        {
+        //            return Ok(new ApiResponseVM<object>
+        //            {
+        //                Success = false,
+        //                Message = "User data is required",
+        //                ErrorCode = "INVALID_INPUT"
+        //            });
+        //        }
+
+        //        if (string.IsNullOrWhiteSpace(userVM.Mobile))
+        //        {
+        //            return Ok(new ApiResponseVM<object>
+        //            {
+        //                Success = false,
+        //                Message = "Mobile number is required",
+        //                ErrorCode = "INVALID_MOBILE"
+        //            });
+        //        }
+
+        //        // Validate mobile number format (basic validation)
+        //        if (!IsValidMobile(userVM.Mobile))
+        //        {
+        //            return Ok(new ApiResponseVM<object>
+        //            {
+        //                Success = false,
+        //                Message = "Invalid mobile number format",
+        //                ErrorCode = "INVALID_MOBILE_FORMAT"
+        //            });
+        //        }
+
+        //        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+        //        var existingUser = await Task.Run(() => _userSignUp.IsExistUser(userVM.Mobile), cts.Token);
+        //        Users users1;
+
+        //        if (existingUser == null)
+        //        {
+        //            users1 = new Users
+        //            {
+        //                Mobile = userVM.Mobile,
+        //                Name = userVM.Name,
+        //                Role = "user",
+        //                IsPremium = false,
+        //                CreatedAt = DateTime.UtcNow,
+        //                UpdatedAt = DateTime.UtcNow
+        //            };
+
+        //            var savedId = await Task.Run(() => _userSignUp.SaveUser(users1), cts.Token);
+        //            users1.Id = savedId;
+
+        //            _logger.LogInformation("New user created with ID: {UserId} for mobile: {Mobile}", savedId, userVM.Mobile);
+        //        }
+        //        else
+        //        {
+        //            users1 = existingUser;
+        //            _logger.LogInformation("Existing user found with ID: {UserId} for mobile: {Mobile}", users1.Id, userVM.Mobile);
+        //        }
+
+        //        // Remove sensitive info before returning
+               
+        //        var token = _jwtTokenService.Authenticate(users1);
+        //        users1.Mobile = MaskMobileNumber(users1.Mobile);
+        //        // Prepare login response with tokens
+        //        var loginResponse = new LoginResponse
+        //        {
+        //            User = users1,
+        //            AccessToken = token.Token,
+        //            RefreshToken = token.RefreshToken,
+        //            TokenExpiration = token.RefreshTokenExpiration,
+        //            TokenType = "Bearer"
+        //        };
+        //        return Ok(new ApiResponseVM<LoginResponse>
+        //        {
+        //            Success = true,
+        //            Data = loginResponse,
+        //            Message = "User signup successful"
+        //        });
+        //    }
+        //    catch (TaskCanceledException)
+        //    {
+        //        _logger.LogError("User signup timed out for mobile: {Mobile}", userVM?.Mobile);
+        //        return StatusCode(408, new ApiResponseVM<object>
+        //        {
+        //            Success = false,
+        //            Message = "Request timed out",
+        //            ErrorCode = "TIMEOUT"
+        //        });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error during user signup for mobile: {Mobile}", userVM?.Mobile);
+        //        return StatusCode(500, new ApiResponseVM<object>
+        //        {
+        //            Success = false,
+        //            Message = "An error occurred during signup",
+        //            ErrorCode = "INTERNAL_ERROR"
+        //        });
+        //    }
+        //}
+
         [HttpPost]
         [ProducesResponseType(typeof(ApiResponseVM<Users>), 200)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
-        public async Task<IActionResult> SignUp([FromBody] UserVM userVM)
+        public async Task<IActionResult> SaveiCareUser([FromBody] iCareUser userVM)
         {
             try
             {
-                _logger.LogInformation("User signup attempt for mobile: {Mobile}", userVM?.Mobile);
+                _logger.LogInformation("User attempt for Email: {Email}", userVM?.Email);
 
                 if (userVM == null)
                 {
@@ -59,63 +170,62 @@ namespace ChatBot.Controllers
                     });
                 }
 
-                if (string.IsNullOrWhiteSpace(userVM.Mobile))
+                if (string.IsNullOrWhiteSpace(userVM.Email))
                 {
                     return Ok(new ApiResponseVM<object>
                     {
                         Success = false,
-                        Message = "Mobile number is required",
-                        ErrorCode = "INVALID_MOBILE"
+                        Message = "Email is required",
+                        ErrorCode = "INVALID_EMAIL"
                     });
                 }
 
                 // Validate mobile number format (basic validation)
-                if (!IsValidMobile(userVM.Mobile))
+                if (!IsValidEmail(userVM.Email))
                 {
                     return Ok(new ApiResponseVM<object>
                     {
                         Success = false,
-                        Message = "Invalid mobile number format",
-                        ErrorCode = "INVALID_MOBILE_FORMAT"
+                        Message = "Invalid email format",
+                        ErrorCode = "INVALID_EMAIL_FORMAT"
                     });
                 }
 
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
-                var existingUser = await Task.Run(() => _userSignUp.IsExistUser(userVM.Mobile), cts.Token);
-                Users users1;
+                var existingUser = await Task.Run(() => _userSignUp.IsExistEmail(userVM.Email), cts.Token);
+                iCareUser users1;
 
                 if (existingUser == null)
                 {
-                    users1 = new Users
+                    users1 = new iCareUser
                     {
-                        Mobile = userVM.Mobile,
-                        Name = userVM.Name,
-                        Role = "user",
-                        IsPremium = false,
+                        Email = userVM.Email,
+                        FirstName = userVM.FirstName,
+                        LastName = userVM.LastName,
+                        UserType = userVM.UserType,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     };
 
-                    var savedId = await Task.Run(() => _userSignUp.SaveUser(users1), cts.Token);
-                    users1.Id = savedId;
+                    var savedId = await Task.Run(() => _userSignUp.SaveUserByiCare(users1), cts.Token);
+                    users1.id = savedId;
 
-                    _logger.LogInformation("New user created with ID: {UserId} for mobile: {Mobile}", savedId, userVM.Mobile);
+                    _logger.LogInformation("New user created with ID: {UserId} for email: {Email}", savedId, userVM.Email);
                 }
                 else
                 {
                     users1 = existingUser;
-                    _logger.LogInformation("Existing user found with ID: {UserId} for mobile: {Mobile}", users1.Id, userVM.Mobile);
+                    _logger.LogInformation("New user created with ID: {UserId} for email: {Email}", users1.id, userVM.Email);
                 }
 
                 // Remove sensitive info before returning
-               
+
                 var token = _jwtTokenService.Authenticate(users1);
-                users1.Mobile = MaskMobileNumber(users1.Mobile);
                 // Prepare login response with tokens
                 var loginResponse = new LoginResponse
                 {
-                    User = users1,
+                    iCareUser = users1,
                     AccessToken = token.Token,
                     RefreshToken = token.RefreshToken,
                     TokenExpiration = token.RefreshTokenExpiration,
@@ -130,7 +240,7 @@ namespace ChatBot.Controllers
             }
             catch (TaskCanceledException)
             {
-                _logger.LogError("User signup timed out for mobile: {Mobile}", userVM?.Mobile);
+                _logger.LogError("User signup timed out for email: {Email}", userVM?.Email);
                 return StatusCode(408, new ApiResponseVM<object>
                 {
                     Success = false,
@@ -140,11 +250,11 @@ namespace ChatBot.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during user signup for mobile: {Mobile}", userVM?.Mobile);
+                _logger.LogError(ex, "Error during save user for email: {Email}", userVM?.Email);
                 return StatusCode(500, new ApiResponseVM<object>
                 {
                     Success = false,
-                    Message = "An error occurred during signup",
+                    Message = "An error occurred during save user",
                     ErrorCode = "INTERNAL_ERROR"
                 });
             }
@@ -339,8 +449,8 @@ namespace ChatBot.Controllers
                 // For now, we'll generate new tokens if the access token structure is valid
 
                 // Get user details
-                var userList = await Task.Run(() => _userSignUp.IsExistUser(string.Empty));
-                var user = userList ?? new Users { Id = userId.Value };
+                var userList = await Task.Run(() => _userSignUp.IsExistEmail(string.Empty));
+                var user = userList ?? new iCareUser { id = userId.Value };
 
                 // Generate new tokens
                 var newAccessToken = _jwtTokenService.GenerateAccessToken(user);

@@ -47,245 +47,245 @@ namespace ChatBot.Controllers
         /// </summary>
         /// <param name="mobile">The mobile number of the admin user.</param>
         /// <returns>Returns success response if login is successful, otherwise an error response.</returns>
-        [HttpPost]
-        [ProducesResponseType(typeof(ApiResponseVM<Users>), 200)]
-        [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
-        [ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
-        public async Task<IActionResult> AdminLogin([FromQuery] string mobile)
-        {
-            try
-            {
-                _logger.LogInformation("Admin login attempt for mobile: {Mobile}", mobile);
+        //[HttpPost]
+        //[ProducesResponseType(typeof(ApiResponseVM<Users>), 200)]
+        //[ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
+        //[ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
+        //public async Task<IActionResult> AdminLogin([FromQuery] string mobile)
+        //{
+        //    try
+        //    {
+        //        _logger.LogInformation("Admin login attempt for mobile: {Mobile}", mobile);
 
-                if (string.IsNullOrWhiteSpace(mobile))
-                {
-                    return BadRequest(new ApiResponseVM<object>
-                    {
-                        Success = false,
-                        Message = "Mobile number is required",
-                        ErrorCode = "INVALID_INPUT"
-                    });
-                }
+        //        if (string.IsNullOrWhiteSpace(mobile))
+        //        {
+        //            return BadRequest(new ApiResponseVM<object>
+        //            {
+        //                Success = false,
+        //                Message = "Mobile number is required",
+        //                ErrorCode = "INVALID_INPUT"
+        //            });
+        //        }
 
-                var users1 = _userSignUp.IsExistUser(mobile);
+        //        var users1 = _userSignUp.IsExistUser(mobile);
 
-                if (users1 == null)
-                {
-                    _logger.LogWarning("Admin login failed - user not found for mobile: {Mobile}", mobile);
-                    return BadRequest(new ApiResponseVM<object>
-                    {
-                        Success = false,
-                        Message = "User not found",
-                        ErrorCode = "USER_NOT_FOUND"
-                    });
-                }
+        //        if (users1 == null)
+        //        {
+        //            _logger.LogWarning("Admin login failed - user not found for mobile: {Mobile}", mobile);
+        //            return BadRequest(new ApiResponseVM<object>
+        //            {
+        //                Success = false,
+        //                Message = "User not found",
+        //                ErrorCode = "USER_NOT_FOUND"
+        //            });
+        //        }
 
-                if (users1.Role != "admin")
-                {
-                    _logger.LogWarning("Admin login failed - user is not admin for mobile: {Mobile}", mobile);
-                    return BadRequest(new ApiResponseVM<object>
-                    {
-                        Success = false,
-                        Message = "You are not admin",
-                        ErrorCode = "INSUFFICIENT_PRIVILEGES"
-                    });
-                }
+        //        if (users1.Role != "admin")
+        //        {
+        //            _logger.LogWarning("Admin login failed - user is not admin for mobile: {Mobile}", mobile);
+        //            return BadRequest(new ApiResponseVM<object>
+        //            {
+        //                Success = false,
+        //                Message = "You are not admin",
+        //                ErrorCode = "INSUFFICIENT_PRIVILEGES"
+        //            });
+        //        }
 
-                var otpSent = await MobileOtpAsync(users1);
-                if (otpSent)
-                {
-                    _logger.LogInformation("Admin login successful for mobile: {Mobile}", mobile);
-                    return Ok(new ApiResponseVM<Users>
-                    {
-                        Success = true,
-                        Data = users1,
-                        Message = "OTP sent successfully"
-                    });
-                }
-                else
-                {
-                    _logger.LogError("Failed to send OTP for admin login: {Mobile}", mobile);
-                    return StatusCode(500, new ApiResponseVM<object>
-                    {
-                        Success = false,
-                        Message = "Something wrong to send OTP",
-                        ErrorCode = "OTP_SEND_FAILED"
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during admin login for mobile: {Mobile}", mobile);
-                return StatusCode(500, new ApiResponseVM<object>
-                {
-                    Success = false,
-                    Message = "An error occurred during admin login",
-                    ErrorCode = "INTERNAL_ERROR"
-                });
-            }
-        }
+        //        var otpSent = await MobileOtpAsync(users1);
+        //        if (otpSent)
+        //        {
+        //            _logger.LogInformation("Admin login successful for mobile: {Mobile}", mobile);
+        //            return Ok(new ApiResponseVM<Users>
+        //            {
+        //                Success = true,
+        //                Data = users1,
+        //                Message = "OTP sent successfully"
+        //            });
+        //        }
+        //        else
+        //        {
+        //            _logger.LogError("Failed to send OTP for admin login: {Mobile}", mobile);
+        //            return StatusCode(500, new ApiResponseVM<object>
+        //            {
+        //                Success = false,
+        //                Message = "Something wrong to send OTP",
+        //                ErrorCode = "OTP_SEND_FAILED"
+        //            });
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error during admin login for mobile: {Mobile}", mobile);
+        //        return StatusCode(500, new ApiResponseVM<object>
+        //        {
+        //            Success = false,
+        //            Message = "An error occurred during admin login",
+        //            ErrorCode = "INTERNAL_ERROR"
+        //        });
+        //    }
+        //}
 
-        /// <summary>
-        /// Verifies admin OTP and issues JWT tokens for admin access.
-        /// </summary>
-        /// <param name="modelVM">The OTPVM model containing the OTP and user ID.</param>
-        /// <returns>Returns JWT tokens if verification is successful, otherwise error response.</returns>
-        [HttpPost]
-        [ProducesResponseType(typeof(ApiResponseVM<LoginResponse>), 200)]
-        [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
-        [ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
-        public async Task<IActionResult> VerifyAdminOtp([FromBody] OTPVM modelVM)
-        {
-            try
-            {
-                _logger.LogInformation("Admin OTP verification attempt for user ID: {UserId}", modelVM?.UserId);
+        ///// <summary>
+        ///// Verifies admin OTP and issues JWT tokens for admin access.
+        ///// </summary>
+        ///// <param name="modelVM">The OTPVM model containing the OTP and user ID.</param>
+        ///// <returns>Returns JWT tokens if verification is successful, otherwise error response.</returns>
+        //[HttpPost]
+        //[ProducesResponseType(typeof(ApiResponseVM<LoginResponse>), 200)]
+        //[ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
+        //[ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
+        //public async Task<IActionResult> VerifyAdminOtp([FromBody] OTPVM modelVM)
+        //{
+        //    try
+        //    {
+        //        _logger.LogInformation("Admin OTP verification attempt for user ID: {UserId}", modelVM?.UserId);
 
-                if (modelVM == null)
-                {
-                    return BadRequest(new ApiResponseVM<object>
-                    {
-                        Success = false,
-                        Message = "OTP data is required",
-                        ErrorCode = "INVALID_INPUT"
-                    });
-                }
+        //        if (modelVM == null)
+        //        {
+        //            return BadRequest(new ApiResponseVM<object>
+        //            {
+        //                Success = false,
+        //                Message = "OTP data is required",
+        //                ErrorCode = "INVALID_INPUT"
+        //            });
+        //        }
 
-                if (string.IsNullOrWhiteSpace(modelVM.OtpNumber))
-                {
-                    return BadRequest(new ApiResponseVM<object>
-                    {
-                        Success = false,
-                        Message = "OTP number is required",
-                        ErrorCode = "INVALID_OTP"
-                    });
-                }
+        //        if (string.IsNullOrWhiteSpace(modelVM.OtpNumber))
+        //        {
+        //            return BadRequest(new ApiResponseVM<object>
+        //            {
+        //                Success = false,
+        //                Message = "OTP number is required",
+        //                ErrorCode = "INVALID_OTP"
+        //            });
+        //        }
 
-                if (modelVM.UserId <= 0)
-                {
-                    return BadRequest(new ApiResponseVM<object>
-                    {
-                        Success = false,
-                        Message = "Valid user ID is required",
-                        ErrorCode = "INVALID_USER_ID"
-                    });
-                }
+        //        if (modelVM.UserId <= 0)
+        //        {
+        //            return BadRequest(new ApiResponseVM<object>
+        //            {
+        //                Success = false,
+        //                Message = "Valid user ID is required",
+        //                ErrorCode = "INVALID_USER_ID"
+        //            });
+        //        }
 
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        //        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
 
-                var verificationVM = await Task.Run(() => _userSignUp.GetOTP(modelVM), cts.Token);
+        //        var verificationVM = await Task.Run(() => _userSignUp.GetOTP(modelVM), cts.Token);
 
-                if (verificationVM == null)
-                {
-                    _logger.LogWarning("No OTP found for admin user ID: {UserId}", modelVM.UserId);
-                    return BadRequest(new ApiResponseVM<object>
-                    {
-                        Success = false,
-                        Message = "No OTP found. Please request a new OTP.",
-                        ErrorCode = "OTP_NOT_FOUND"
-                    });
-                }
+        //        if (verificationVM == null)
+        //        {
+        //            _logger.LogWarning("No OTP found for admin user ID: {UserId}", modelVM.UserId);
+        //            return BadRequest(new ApiResponseVM<object>
+        //            {
+        //                Success = false,
+        //                Message = "No OTP found. Please request a new OTP.",
+        //                ErrorCode = "OTP_NOT_FOUND"
+        //            });
+        //        }
 
-                if (!verificationVM.OtpNumber.Equals(modelVM.OtpNumber, StringComparison.OrdinalIgnoreCase))
-                {
-                    _logger.LogWarning("Wrong OTP provided for admin user ID: {UserId}", modelVM.UserId);
-                    return BadRequest(new ApiResponseVM<object>
-                    {
-                        Success = false,
-                        Message = "Invalid OTP. Please check and try again.",
-                        ErrorCode = "WRONG_OTP"
-                    });
-                }
+        //        if (!verificationVM.OtpNumber.Equals(modelVM.OtpNumber, StringComparison.OrdinalIgnoreCase))
+        //        {
+        //            _logger.LogWarning("Wrong OTP provided for admin user ID: {UserId}", modelVM.UserId);
+        //            return BadRequest(new ApiResponseVM<object>
+        //            {
+        //                Success = false,
+        //                Message = "Invalid OTP. Please check and try again.",
+        //                ErrorCode = "WRONG_OTP"
+        //            });
+        //        }
 
-                if (DateTime.UtcNow > verificationVM.OtpTime.AddMinutes(_appSetting.MobileOtpVerificationTime))
-                {
-                    _logger.LogWarning("Expired OTP provided for admin user ID: {UserId}", modelVM.UserId);
-                    return BadRequest(new ApiResponseVM<object>
-                    {
-                        Success = false,
-                        Message = "OTP has expired. Please request a new OTP.",
-                        ErrorCode = "OTP_EXPIRED"
-                    });
-                }
+        //        if (DateTime.UtcNow > verificationVM.OtpTime.AddMinutes(_appSetting.MobileOtpVerificationTime))
+        //        {
+        //            _logger.LogWarning("Expired OTP provided for admin user ID: {UserId}", modelVM.UserId);
+        //            return BadRequest(new ApiResponseVM<object>
+        //            {
+        //                Success = false,
+        //                Message = "OTP has expired. Please request a new OTP.",
+        //                ErrorCode = "OTP_EXPIRED"
+        //            });
+        //        }
 
-                // Get admin user details
-                var adminUser = await Task.Run(() =>_user.GetUserById(modelVM.UserId), cts.Token);
+        //        // Get admin user details
+        //        var adminUser = await Task.Run(() =>_user.GetUserById(modelVM.UserId), cts.Token);
 
-                // Verify user is admin
-                if (adminUser == null || adminUser.Role != "admin")
-                {
-                    return BadRequest(new ApiResponseVM<object>
-                    {
-                        Success = false,
-                        Message = "Access denied. Admin privileges required.",
-                        ErrorCode = "INSUFFICIENT_PRIVILEGES"
-                    });
-                }
+        //        // Verify user is admin
+        //        if (adminUser == null || adminUser.Role != "admin")
+        //        {
+        //            return BadRequest(new ApiResponseVM<object>
+        //            {
+        //                Success = false,
+        //                Message = "Access denied. Admin privileges required.",
+        //                ErrorCode = "INSUFFICIENT_PRIVILEGES"
+        //            });
+        //        }
 
-                // Generate JWT tokens for admin
-                var accessToken = _jwtTokenService.GenerateAccessToken(adminUser);
-                var refreshToken = _jwtTokenService.GenerateRefreshToken();
-                var tokenExpiration = _jwtTokenService.GetTokenExpiration(accessToken);
+        //        // Generate JWT tokens for admin
+        //        var accessToken = _jwtTokenService.GenerateAccessToken(adminUser);
+        //        var refreshToken = _jwtTokenService.GenerateRefreshToken();
+        //        var tokenExpiration = _jwtTokenService.GetTokenExpiration(accessToken);
 
-                // Log successful admin login
-                var adminLoginLog = new AdminLoginLog
-                {
-                    AdminId = adminUser.Id,
-                    LoginTime = DateTime.UtcNow,
-                    Actions = "Login"
-                };
+        //        // Log successful admin login
+        //        var adminLoginLog = new AdminLoginLog
+        //        {
+        //            AdminId = adminUser.Id,
+        //            LoginTime = DateTime.UtcNow,
+        //            Actions = "Login"
+        //        };
 
-                _userSignUp.SaveAdminLoginLog(adminLoginLog);
+        //        _userSignUp.SaveAdminLoginLog(adminLoginLog);
 
-                // Prepare login response with tokens
-                var loginResponse = new LoginResponse
-                {
-                    User = new Users
-                    {
-                        Id = adminUser.Id,
-                        Name = adminUser.Name,
-                        Email = adminUser.Email,
-                        Mobile = MaskMobileNumber(adminUser.Mobile ?? string.Empty),
-                        Role = adminUser.Role,
-                        IsPremium = adminUser.IsPremium,
-                        CreatedAt = adminUser.CreatedAt,
-                        UpdatedAt = DateTime.UtcNow
-                    },
-                    AccessToken = accessToken,
-                    RefreshToken = refreshToken,
-                    TokenExpiration = tokenExpiration,
-                    TokenType = "Bearer"
-                };
+        //        // Prepare login response with tokens
+        //        var loginResponse = new LoginResponse
+        //        {
+        //            User = new Users
+        //            {
+        //                Id = adminUser.Id,
+        //                Name = adminUser.Name,
+        //                Email = adminUser.Email,
+        //                Mobile = MaskMobileNumber(adminUser.Mobile ?? string.Empty),
+        //                Role = adminUser.Role,
+        //                IsPremium = adminUser.IsPremium,
+        //                CreatedAt = adminUser.CreatedAt,
+        //                UpdatedAt = DateTime.UtcNow
+        //            },
+        //            AccessToken = accessToken,
+        //            RefreshToken = refreshToken,
+        //            TokenExpiration = tokenExpiration,
+        //            TokenType = "Bearer"
+        //        };
 
-                _logger.LogInformation("Admin OTP verification successful and JWT tokens issued for user ID: {UserId}", modelVM.UserId);
+        //        _logger.LogInformation("Admin OTP verification successful and JWT tokens issued for user ID: {UserId}", modelVM.UserId);
 
-                return Ok(new ApiResponseVM<LoginResponse>
-                {
-                    Success = true,
-                    Data = loginResponse,
-                    Message = "Admin login successful. Tokens issued."
-                });
-            }
-            catch (TaskCanceledException)
-            {
-                _logger.LogError("Admin OTP verification timed out for user ID: {UserId}", modelVM?.UserId);
-                return StatusCode(408, new ApiResponseVM<object>
-                {
-                    Success = false,
-                    Message = "Request timed out",
-                    ErrorCode = "TIMEOUT"
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during admin OTP verification for user ID: {UserId}", modelVM?.UserId);
-                return StatusCode(500, new ApiResponseVM<object>
-                {
-                    Success = false,
-                    Message = "An error occurred during OTP verification",
-                    ErrorCode = "INTERNAL_ERROR"
-                });
-            }
-        }
+        //        return Ok(new ApiResponseVM<LoginResponse>
+        //        {
+        //            Success = true,
+        //            Data = loginResponse,
+        //            Message = "Admin login successful. Tokens issued."
+        //        });
+        //    }
+        //    catch (TaskCanceledException)
+        //    {
+        //        _logger.LogError("Admin OTP verification timed out for user ID: {UserId}", modelVM?.UserId);
+        //        return StatusCode(408, new ApiResponseVM<object>
+        //        {
+        //            Success = false,
+        //            Message = "Request timed out",
+        //            ErrorCode = "TIMEOUT"
+        //        });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error during admin OTP verification for user ID: {UserId}", modelVM?.UserId);
+        //        return StatusCode(500, new ApiResponseVM<object>
+        //        {
+        //            Success = false,
+        //            Message = "An error occurred during OTP verification",
+        //            ErrorCode = "INTERNAL_ERROR"
+        //        });
+        //    }
+        //}
 
         /// <summary>
         /// Uploads a file and saves its metadata to the database.

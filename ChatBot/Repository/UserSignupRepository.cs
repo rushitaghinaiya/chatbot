@@ -51,6 +51,39 @@ namespace ChatBot.Repository
             }
         }
 
+        public int SaveUserByiCare(iCareUser users)
+        {
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                SqlTransaction transaction = connection.BeginTransaction();
+                try
+                {
+                   
+                    users.id = connection.QueryAsync<int>(@"
+                        INSERT INTO iCareUser(FirstName, LastName, Email, UserType, UpdatedAt, CreatedAt)
+                        VALUES(@firstname, @lastname, @email, @usertype, @updated_at, @created_at); 
+                        SELECT CAST(SCOPE_IDENTITY() as int);",
+                        new
+                        {
+                            firstname= users.FirstName,
+                            lastname= users.LastName,
+                            email = users.Email,
+                            usertype = users.UserType,
+                            created_at = users.CreatedAt,
+                            updated_at = users.UpdatedAt
+                        }, transaction: transaction).Result.FirstOrDefault();
+                    transaction.Commit();
+                }
+                catch (Exception)
+                {
+                    transaction.Rollback();
+                    throw;
+                }
+                return users.id;
+            }
+        }
+
         public int SaveLoginLog(LoginLogVM loginLog)
         {
             using (SqlConnection connection = new SqlConnection(_connectionString))
@@ -160,6 +193,28 @@ namespace ChatBot.Repository
                     {
                         user.Mobile = Decrypt(user.Mobile);
                     }
+                    return user;
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }
+        }
+
+        public iCareUser IsExistEmail(string email)
+        {
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    iCareUser user = new iCareUser();
+                    user = connection.Query<iCareUser>(
+                        sql: "SELECT * FROM Users u WHERE u.email = @email;",
+                        param: new { email },
+                        commandType: CommandType.Text
+                    ).FirstOrDefault();
+                   
                     return user;
                 }
                 catch (Exception)

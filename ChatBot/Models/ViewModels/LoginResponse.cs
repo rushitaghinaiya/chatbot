@@ -3,6 +3,7 @@
     public class LoginResponse
     {
         public Users User { get; set; } = new Users();
+        public iCareUser iCareUser{ get; set; } = new iCareUser();
         public string AccessToken { get; set; } = string.Empty;
         public string RefreshToken { get; set; } = string.Empty;
         public DateTime TokenExpiration { get; set; }
