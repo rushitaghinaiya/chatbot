@@ -2,7 +2,7 @@
 {
     public class QueryHistoryDto
     {
-        public int UserId { get; set; }
+        public string EmailId { get; set; }
         public string QueryText { get; set; }
         public string ResponseText { get; set; }
         public double? ResponseTime { get; set; }

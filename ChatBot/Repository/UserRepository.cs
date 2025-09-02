@@ -567,7 +567,7 @@ namespace ChatBot.Repository
         {
             var query = new
             {
-                dto.UserId,
+                dto.EmailId,
                 dto.QueryText,
                 dto.ResponseText,
                 dto.ResponseTime,
@@ -578,9 +578,9 @@ namespace ChatBot.Repository
             try
             {
                 var sql = @"INSERT INTO queryhistory 
-                ( UserId, QueryText, ResponseText,  ResponseTime, topic, timestamp, status)
+                ( EmailId, QueryText, ResponseText,  ResponseTime, topic, timestamp, status)
                 VALUES 
-                (@UserId, @QueryText, @ResponseText, @ResponseTime, @Topic, @Timestamp, @Status);
+                (@EmailId, @QueryText, @ResponseText, @ResponseTime, @Topic, @Timestamp, @Status);
                  SELECT CAST(SCOPE_IDENTITY() as int);";
 
                 using (var connection = new SqlConnection(_connectionString))

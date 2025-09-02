@@ -23,7 +23,7 @@ Log.Logger = new LoggerConfiguration()
 // Add services to the container
 builder.Services.AddHttpClient<MedlinePlusController>();
 
-builder.Services.AddTransient<IUserSignUp>(s => new UserSignupRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
+builder.Services.AddTransient<IUserSignUp>(s => new UserSignupRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString(), configuration.GetSection("ApplicationSettings").Get<AppSettings>()));
 builder.Services.AddTransient<IQuestion>(s => new QuestionRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IAdmin>(s => new AdminRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IApiLogService>(s => new ApiLogRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
@@ -146,7 +146,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("allowCors", policy =>
     {
-        policy.WithOrigins("https://chat.icare.life/app/", "https://chat.icare.life/admin/")
+        policy.WithOrigins("https://chat.icare.life/app/", "https://chat.icare.life/admin/", "http://localhost:4200")
               .AllowAnyMethod()
               .AllowAnyHeader();
     });

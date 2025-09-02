@@ -478,6 +478,54 @@ namespace ChatBot.Controllers
         }
 
         /// <summary>
+        /// Verifies whether the given email exists in the Excel file.
+        /// </summary>
+        /// <param name="model">The login request containing the email to verify.</param>
+        /// <returns>
+        /// Returns a JSON response with the following structure:
+        /// {
+        ///   Success = true/false,
+        ///   Data = course details if found, otherwise null,
+        ///   Message = "User exists" or "User not found"
+        /// }
+        /// </returns>
+        [HttpPost]
+        public IActionResult VerifyEmail([FromBody] LoginDto model)
+        {
+            if (string.IsNullOrEmpty(model.Email))
+                return BadRequest(new { Success = false, Data = (string?)null, Message = "Email is required" });
+
+
+            try
+            {
+                var result = _userSignUp.VerifyEmail(model.Email);
+
+                if (result.exists)
+                {
+                    return Ok(new
+                    {
+                        Success = true,
+                        Data = result.courses,
+                        Message = "User exist"
+                    });
+                   
+                }
+
+                return Ok(new
+                {
+                    Success = false,
+                    Data = result.courses,
+                    Message = "User not exist"
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Data = (string?)null, Message = ex.Message });
+            }
+        }
+
+
+        /// <summary>
         /// Generates and sends an OTP to the user's mobile number for verification.
         /// </summary>
         /// <param name="users">The user object containing the mobile number and user ID.</param>

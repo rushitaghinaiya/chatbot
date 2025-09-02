@@ -6,14 +6,18 @@ using Model.ViewModels;
 using Microsoft.Data.SqlClient;
 using System.Data;
 using VRMDBCommon2023;
+using ClosedXML.Excel;
+using ChatBot.Models.Common;
 
 namespace ChatBot.Repository
 {
     public class UserSignupRepository : IUserSignUp
     {
         private readonly string _connectionString;
-        public UserSignupRepository(string connectionString)
+        private readonly AppSettings _appSettings;
+        public UserSignupRepository(string connectionString,AppSettings appSettings)
         {
+            _appSettings = appSettings;
             _connectionString = connectionString;
         }
 
@@ -219,6 +223,27 @@ namespace ChatBot.Repository
                     throw;
                 }
             }
+        }
+
+        public (bool exists, string? courses) VerifyEmail(string email)
+        {
+            if (!File.Exists(_appSettings.UserFilePath))
+                throw new FileNotFoundException("Excel file not found!", _appSettings.UserFilePath);
+
+            using var workbook = new XLWorkbook(_appSettings.UserFilePath);
+            var worksheet = workbook.Worksheets.First();
+
+            foreach (var row in worksheet.RowsUsed().Skip(1)) // skip header row
+            {
+                var cellValue = row.Cell(4).GetString().Trim().ToLower(); // Column D (Login Email)
+
+                if (cellValue == email.Trim().ToLower())
+                {
+                    string courses = row.Cell(6).GetString().Trim(); // Column F (Courses)
+                    return (true, courses);
+                }
+            }
+            return (false, null);
         }
     }
 }
