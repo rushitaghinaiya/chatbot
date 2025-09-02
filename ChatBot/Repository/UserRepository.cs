@@ -48,7 +48,7 @@ namespace ChatBot.Repository
                 {
                     var user = connection.QueryAsync<Users>(
                         "SELECT Id, Name, Email, Mobile, Role, IsPremium, CreatedAt, UpdatedAt FROM Users where Id=@UserId",
-                        param: new {UserId=userId}
+                        param: new { UserId = userId }
                     ).Result.FirstOrDefault();
                     user.Mobile = Decrypt(user.Mobile);
                     return user;
@@ -291,7 +291,7 @@ namespace ChatBot.Repository
                 {
                     percentChange = Math.Round(((todayCount - lastMonthCount) / (double)lastMonthCount) * 100, 2);
                 }
-                
+
 
                 return (todayCount, lastMonthCount, percentChange);
             }
@@ -567,34 +567,75 @@ namespace ChatBot.Repository
         {
             var query = new
             {
+                dto.SessionId,
                 dto.EmailId,
                 dto.QueryText,
                 dto.ResponseText,
                 dto.ResponseTime,
+                dto.ChatJson,
                 dto.Topic,
                 Timestamp = DateTime.Now,
                 dto.Status
             };
+
             try
             {
-                var sql = @"INSERT INTO queryhistory 
-                ( EmailId, QueryText, ResponseText,  ResponseTime, topic, timestamp, status)
-                VALUES 
-                (@EmailId, @QueryText, @ResponseText, @ResponseTime, @Topic, @Timestamp, @Status);
-                 SELECT CAST(SCOPE_IDENTITY() as int);";
-
                 using (var connection = new SqlConnection(_connectionString))
                 {
-                    var queryId = await connection.QuerySingleAsync<int>(sql, query);
-                    return queryId > 0;
-                }
+                    // Check if record already exists for EmailId + SessionId
+                    var existingId = await connection.QueryFirstOrDefaultAsync<int?>(
+                        @"SELECT QueryId FROM QueryHistory WHERE EmailId = @EmailId AND SessionId = @SessionId",
+                        new { dto.EmailId, dto.SessionId });
 
+                    if (existingId == null)
+                    {
+                        // Insert new record
+                        var insertSql = @"
+                    INSERT INTO QueryHistory 
+                        (SessionId, EmailId, QueryText, ResponseText, ResponseTime, ChatJson, Topic, Timestamp, Status)
+                    VALUES 
+                        (@SessionId, @EmailId, @QueryText, @ResponseText, @ResponseTime, @ChatJson, @Topic, @Timestamp, @Status);
+                    SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                        var queryId = await connection.QuerySingleAsync<int>(insertSql, query);
+                        return queryId > 0;
+                    }
+                    else
+                    {
+                        // Update existing record
+                        var updateSql = @"
+                    UPDATE QueryHistory
+                    SET QueryText = @QueryText,
+                        ResponseText = @ResponseText,
+                        ResponseTime = @ResponseTime,
+                        ChatJson = @ChatJson,
+                        Topic = @Topic,
+                        Timestamp = @Timestamp,
+                        Status = @Status
+                    WHERE queryId = @Id";
+
+                        var rows = await connection.ExecuteAsync(updateSql, new
+                        {
+                            Id = existingId.Value,
+                            dto.QueryText,
+                            dto.ResponseText,
+                            dto.ResponseTime,
+                            dto.ChatJson,
+                            dto.Topic,
+                            Timestamp = DateTime.Now,
+                            dto.Status
+                        });
+
+                        return rows > 0;
+                    }
+                }
             }
             catch (Exception)
             {
                 return false;
             }
         }
+
 
 
     }
