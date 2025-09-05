@@ -156,7 +156,7 @@ namespace ChatBot.Repository
                     mobile = Encrypt(mobile);
                     Users user = new Users();
                     user = connection.Query<Users>(
-                        sql: "SELECT * FROM Users u WHERE u.Mobile = @mobile;",
+                        sql: "SELECT * FROM Users u WHERE u.EmailId = @EmailId;",
                         param: new { mobile },
                         commandType: CommandType.Text
                     ).FirstOrDefault();
@@ -183,13 +183,13 @@ namespace ChatBot.Repository
                     connection.Open();
                     SqlTransaction transaction = connection.BeginTransaction();
                     rowsAffectedCount += connection.Query<int>(
-                     @"INSERT INTO AuthenticationOtp(UserId, OtpNumber, OtpTime, CreatedAt)
-                       VALUES(@UserId, @OtpNumber, @OtpTime, @CreatedAt);
+                     @"INSERT INTO AuthenticationOtp(EmailId, OtpNumber, OtpTime, CreatedAt)
+                       VALUES(@EmailId, @OtpNumber, @OtpTime, @CreatedAt);
                        SELECT CAST(SCOPE_IDENTITY() as int);",
                         commandType: CommandType.Text,
                         param: new
                         {
-                            otpVM.UserId,
+                            otpVM.EmailId,
                             otpVM.OtpNumber,
                             OtpTime = DateTime.Now,
                             CreatedAt = DateTime.Now
@@ -213,9 +213,9 @@ namespace ChatBot.Repository
                     otpVM = connection.QueryAsync<OTPVM>(@"
                         SELECT TOP 1 OtpNumber, OtpTime 
                         FROM AuthenticationOtp 
-                        WHERE UserId = @userid 
+                        WHERE EmailId = @emailid 
                         ORDER BY Id DESC",
-                        param: new { userid = otpVM.UserId }).Result.FirstOrDefault();
+                        param: new { emailid = otpVM.EmailId}).Result.FirstOrDefault();
                     return otpVM;
                 }
                 catch (Exception)
@@ -225,7 +225,7 @@ namespace ChatBot.Repository
             }
         }
 
-        public (bool exists, string? courses) VerifyEmail(string email)
+        public (bool exists, UserDetailsExcel user) VerifyEmail(string email)
         {
             if (!File.Exists(_appSettings.UserFilePath))
                 throw new FileNotFoundException("Excel file not found!", _appSettings.UserFilePath);
@@ -239,11 +239,23 @@ namespace ChatBot.Repository
 
                 if (cellValue == email.Trim().ToLower())
                 {
-                    string courses = row.Cell(6).GetString().Trim(); // Column F (Courses)
-                    return (true, courses);
+                    var user= new UserDetailsExcel
+                    {
+                        DisplayName = row.Cell(1).GetString().Trim(),
+                        FirstName = row.Cell(2).GetString().Trim(),
+                        LastName = row.Cell(3).GetString().Trim(),
+                        LoginEmail = row.Cell(4).GetString().Trim(),
+                        Phone = row.Cell(5).GetString().Trim(),
+                        Courses = row.Cell(6).GetString().Trim(),
+                        IsMembership = bool.TryParse(row.Cell(7).GetString().Trim(), out var result) && result
+                    };
+                    return (true, user);
                 }
             }
             return (false, null);
         }
+
+
+       
     }
 }

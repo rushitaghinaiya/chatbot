@@ -1,5 +1,7 @@
+using ChatBot.Models.Common;
 using ChatBot.Models.Services;
 using ChatBot.Models.ViewModels;
+using ClosedXML.Excel;
 using Dapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -13,8 +15,11 @@ namespace ChatBot.Repository
     public class UserRepository : IUser
     {
         private readonly string _connectionString;
-        public UserRepository(string connectionString)
+        private readonly AppSettings _appSettings;
+
+        public UserRepository(string connectionString,AppSettings appSettings)
         {
+            _appSettings = appSettings;
             _connectionString = connectionString;
         }
 
@@ -270,11 +275,17 @@ namespace ChatBot.Repository
 
             using (var connection = new SqlConnection(_connectionString))
             {
+
                 string sql = @"
             SELECT 
-                COUNT(CASE WHEN CAST(Timestamp AS DATE) = @Today THEN 1 END) AS TodayCount,
-                COUNT(CASE WHEN CAST(Timestamp AS DATE) BETWEEN @LastMonthStart AND @LastMonthEnd THEN 1 END) AS LastMonthCount
-            FROM QueryHistory";
+                SUM(CASE WHEN CAST(Timestamp AS DATE) = @Today THEN QueryCount ELSE 0 END) AS TodayCount,
+                SUM(CASE WHEN CAST(Timestamp AS DATE) BETWEEN @LastMonthStart AND @LastMonthEnd THEN QueryCount ELSE 0 END) AS LastMonthCount
+            FROM (
+                SELECT 
+                    Timestamp,
+                    (SELECT COUNT(*) FROM OPENJSON(ChatJson)) AS QueryCount
+                FROM QueryHistory
+            ) q";
 
                 var result = await connection.QueryFirstOrDefaultAsync<dynamic>(sql, new
                 {
@@ -378,7 +389,33 @@ namespace ChatBot.Repository
                 }
             }
         }
+        public List<UserDetailsExcel> ReadExcel()
+        {
+            var users = new List<UserDetailsExcel>();
 
+            using (var workbook = new XLWorkbook(_appSettings.UserFilePath))
+            {
+                var worksheet = workbook.Worksheet(1); // First sheet
+                var rows = worksheet.RangeUsed().RowsUsed().Skip(1); // Skip header row
+
+                foreach (var row in rows)
+                {
+                    var user = new UserDetailsExcel
+                    {
+                        DisplayName = row.Cell(1).GetString(),
+                        FirstName = row.Cell(2).GetString(),
+                        LastName = row.Cell(3).GetString(),
+                        LoginEmail = row.Cell(4).GetString(),
+                        Phone = row.Cell(5).GetString(),
+                        Courses = row.Cell(6).GetString()
+                    };
+
+                    users.Add(user);
+                }
+            }
+
+            return users;
+        }
 
         public List<UserChatbotStatsDto> GetUserChatbotStats()
         {
@@ -445,11 +482,19 @@ namespace ChatBot.Repository
             using (var connection = new SqlConnection(_connectionString))
             {
                 var sql = @"
-                SELECT 
-                    SUM(CASE WHEN Status = 'Answered' THEN 1 ELSE 0 END) AS AnsweredCount,
-                    SUM(CASE WHEN Status = 'Unanswered' THEN 1 ELSE 0 END) AS UnansweredCount,
-                    SUM(CASE WHEN Status = 'Incomplete' THEN 1 ELSE 0 END) AS IncompleteCount
-                FROM QueryHistory";
+                  SELECT 
+                SUM(CASE WHEN j.[Status] = 'Answered' THEN 1 ELSE 0 END) AS AnsweredCount,
+                SUM(CASE WHEN j.[Status] = 'Unanswered' THEN 1 ELSE 0 END) AS UnansweredCount,
+                SUM(CASE WHEN j.[Status] = 'Incomplete' THEN 1 ELSE 0 END) AS IncompleteCount
+            FROM QueryHistory q
+            CROSS APPLY OPENJSON(q.ChatJson)
+            WITH (
+                QueryText NVARCHAR(MAX) '$.queryText',
+                ResponseText NVARCHAR(MAX) '$.responseText',
+                ResponseTime FLOAT '$.responseTime',
+                Topic NVARCHAR(200) '$.topic',
+                Status NVARCHAR(50) '$.status'
+            ) j";
 
                 return connection.QuerySingle<QueryStatusDistribution>(sql);
             }
@@ -487,10 +532,22 @@ namespace ChatBot.Repository
             ");
 
             var AvgQueries = await connection.QueryFirstOrDefaultAsync<double?>(@"
-                SELECT 
-                ROUND(CAST(COUNT(Q.QueryId) AS FLOAT) / NULLIF(COUNT(DISTINCT Q.UserId), 0), 1) AS AvgQueries
-                FROM QueryHistory Q
-                WHERE CAST(Q.Timestamp AS DATE) = CAST(GETDATE() AS DATE)
+               SELECT 
+                    ROUND(
+                        CAST(COUNT(*) AS FLOAT) / NULLIF(COUNT(DISTINCT q.EmailId), 0), 
+                        1
+                    ) AS AvgQueries
+                FROM QueryHistory q
+                CROSS APPLY OPENJSON(q.ChatJson)
+                WITH (
+                    QueryText NVARCHAR(MAX) '$.queryText',
+                    ResponseText NVARCHAR(MAX) '$.responseText',
+                    ResponseTime FLOAT '$.responseTime',
+                    Topic NVARCHAR(200) '$.topic',
+                    Status NVARCHAR(50) '$.status'
+                ) j
+                WHERE CAST(q.Timestamp AS DATE) = CAST(GETDATE() AS DATE);
+
             ");
 
 
@@ -539,12 +596,12 @@ namespace ChatBot.Repository
                     try
                     {
                         var sessionId = await connection.QuerySingleAsync<int>(@"
-                    INSERT INTO BotSessions(UserId, StartTime, EndTime,TotalTimeSpent, CreatedAt)
-                    VALUES(@user_id, @start_time, @end_time,@totalTimeSpent, @created_at);
+                    INSERT INTO BotSessions(EmailId, StartTime, EndTime,TotalTimeSpent, CreatedAt)
+                    VALUES(@email_id, @start_time, @end_time,@totalTimeSpent, @created_at);
                     SELECT CAST(SCOPE_IDENTITY() as int);",
                             new
                             {
-                                user_id = botSession.UserId,
+                                email_id = botSession.EmailId,
                                 start_time = botSession.StartTime,
                                 end_time = botSession.EndTime,
                                 created_at = DateTime.Now,

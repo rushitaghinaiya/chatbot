@@ -12,4 +12,24 @@
         public string Language { get; set; } = string.Empty;
         public string DbType { get; set; } = string.Empty;
     }
+
+    public class QnaResponse
+    {
+        public string Question { get; set; }
+        public List<Answer> Answers { get; set; }
+    }
+
+    public class Answer
+    {
+        public string Category { get; set; }
+        public string Response { get; set; }
+        public List<Source> Source { get; set; }
+    }
+
+    public class Source
+    {
+        public string Filename { get; set; }
+        public List<string> Timestamps { get; set; }
+    }
+
 }

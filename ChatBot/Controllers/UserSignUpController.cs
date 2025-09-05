@@ -1,4 +1,5 @@
-﻿using ChatBot.Models.Common;
+﻿using API.Common;
+using ChatBot.Models.Common;
 using ChatBot.Models.Services;
 using ChatBot.Models.ViewModels;
 using Microsoft.AspNetCore.Authorization;
@@ -19,6 +20,7 @@ namespace ChatBot.Controllers
     {
         private readonly AppSettings _appSetting;
         private readonly IUserSignUp _userSignUp;
+        private EmailSender _emailSender;
         private readonly IJwtTokenService _jwtTokenService;
         private readonly ILogger<UserSignUpController> _logger;
 
@@ -30,6 +32,7 @@ namespace ChatBot.Controllers
         {
             _appSetting = appSettings.Value;
             _userSignUp = userSignUp;
+            _emailSender = new EmailSender(appSettings);
             _jwtTokenService = jwtTokenService;
             _logger = logger;
         }
@@ -109,7 +112,7 @@ namespace ChatBot.Controllers
                 }
 
                 // Remove sensitive info before returning
-               
+
                 var token = _jwtTokenService.Authenticate(users1);
                 users1.Mobile = MaskMobileNumber(users1.Mobile);
                 // Prepare login response with tokens
@@ -159,11 +162,11 @@ namespace ChatBot.Controllers
         [ProducesResponseType(typeof(ApiResponseVM<LoginResponse>), 200)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
-        public async Task<IActionResult> VerifyMobileOtp([FromBody] OTPVM modelVM)
+        public async Task<IActionResult> VerifyOtp([FromBody] OTPVM modelVM)
         {
             try
             {
-                _logger.LogInformation("OTP verification attempt for user ID: {UserId}", modelVM?.UserId);
+                _logger.LogInformation("OTP verification attempt for enail ID: {UserId}", modelVM?.EmailId);
 
                 if (modelVM == null)
                 {
@@ -185,13 +188,13 @@ namespace ChatBot.Controllers
                     });
                 }
 
-                if (modelVM.UserId <= 0)
+                if (modelVM.EmailId ==null)
                 {
                     return Ok(new ApiResponseVM<object>
                     {
                         Success = false,
-                        Message = "Valid user ID is required",
-                        ErrorCode = "INVALID_USER_ID"
+                        Message = "Valid email ID is required",
+                        ErrorCode = "INVALID_EMAIL_ID"
                     });
                 }
 
@@ -232,9 +235,7 @@ namespace ChatBot.Controllers
                     });
                 }
 
-                // Get full user details for token generation
-                var userList = await Task.Run(() => _userSignUp.IsExistUser(string.Empty), cts.Token);
-                var user = userList ?? new Users { Id = modelVM.UserId };
+          
 
                 // OTP verification successful, log the successful login
                 var loginLogVM = new LoginLogVM
@@ -245,40 +246,22 @@ namespace ChatBot.Controllers
                     CreatedAt = DateTime.UtcNow
                 };
 
-                _userSignUp.SaveLoginLog(loginLogVM);
-               // var token = _jwtTokenService.Authenticate(modelVM.UserId);
-                // Prepare login response with tokens
-                var loginResponse = new LoginResponse
-                {
-                    User = new Users
-                    {
-                        Id = user.Id,
-                        Name = user.Name,
-                        Email = user.Email,
-                        Mobile = MaskMobileNumber(user.Mobile ?? string.Empty),
-                        Role = user.Role,
-                        IsPremium = user.IsPremium,
-                        CreatedAt = user.CreatedAt,
-                        UpdatedAt = DateTime.UtcNow
-                    },
-                    //AccessToken = token.Token,
-                    //RefreshToken = token.RefreshToken,
-                    //TokenExpiration = token.RefreshTokenExpiration,
-                    TokenType = "Bearer"
-                };
+               // _userSignUp.SaveLoginLog(loginLogVM);
+                // var token = _jwtTokenService.Authenticate(modelVM.UserId);
+                
 
-                _logger.LogInformation("OTP verification successful and JWT tokens issued for user ID: {UserId}", modelVM.UserId);
+                _logger.LogInformation("OTP verification successful and JWT tokens issued for email ID: {EmailId}", modelVM?.EmailId);
 
                 return Ok(new ApiResponseVM<LoginResponse>
                 {
                     Success = true,
-                    Data = loginResponse,
-                    Message = "Login successful. Tokens issued."
+                    Data = null,
+                    Message = "otp verified."
                 });
             }
             catch (TaskCanceledException)
             {
-                _logger.LogError("OTP verification timed out for user ID: {UserId}", modelVM?.UserId);
+                _logger.LogError("OTP verification timed out for email ID: {EmailId}", modelVM?.EmailId);
                 return StatusCode(408, new ApiResponseVM<object>
                 {
                     Success = false,
@@ -288,7 +271,7 @@ namespace ChatBot.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during OTP verification for user ID: {UserId}", modelVM?.UserId);
+                _logger.LogError(ex, "Error during OTP verification for email ID: {EmailId}", modelVM?.EmailId);
                 return StatusCode(500, new ApiResponseVM<object>
                 {
                     Success = false,
@@ -490,31 +473,45 @@ namespace ChatBot.Controllers
         /// }
         /// </returns>
         [HttpPost]
-        public IActionResult VerifyEmail([FromBody] LoginDto model)
+        public IActionResult VerifyEmail([FromForm] string Email)
         {
-            if (string.IsNullOrEmpty(model.Email))
+            if (string.IsNullOrEmpty(Email))
                 return BadRequest(new { Success = false, Data = (string?)null, Message = "Email is required" });
 
 
             try
             {
-                var result = _userSignUp.VerifyEmail(model.Email);
+                var result = _userSignUp.VerifyEmail(Email);
 
                 if (result.exists)
                 {
-                    return Ok(new
+                    //bool isSent = true;
+                   bool isSent = EmailOtpAsync(result.user).Result;
+                    if (isSent)
                     {
-                        Success = true,
-                        Data = result.courses,
-                        Message = "User exist"
-                    });
-                   
+                        return Ok(new
+                        {
+                            Success = true,
+                            Data = result.user,
+                            Message = "User exist"
+                        });
+                    }
+                    else
+                    {
+                        return Ok(new
+                        {
+                            Success = false,
+                            Data = (string?)null,
+                            Message = "otp not sent"
+                        });
+                    }
+
                 }
 
                 return Ok(new
                 {
                     Success = false,
-                    Data = result.courses,
+                    Data = (string?)null,
                     Message = "User not exist"
                 });
             }
@@ -585,6 +582,36 @@ namespace ChatBot.Controllers
             }
             catch
             {
+                return false;
+            }
+        }
+        private async Task<bool> EmailOtpAsync(UserDetailsExcel users)
+        {
+            try
+            {
+                var modelVM = new OTPVM
+                {
+                    OtpNumber = StringUtilities.RandomString(6),
+                    CreatedAt = DateTime.Now,
+                    EmailId = users.LoginEmail.ToString(),
+                };
+
+                var otpSaved = await _userSignUp.SaveOTP(modelVM);
+                if (otpSaved > 0)
+                {
+                    _ = _emailSender.SendOtpEmail(users, modelVM.OtpNumber);
+                    _logger.LogInformation("OTP sent successfully to email: {Email}", users.LoginEmail);
+                    return true;
+                }
+                else
+                {
+                    _logger.LogError("Failed to save OTP for admin user: {UserId}", users.LoginEmail);
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending OTP to email: {Email}", users.LoginEmail);
                 return false;
             }
         }

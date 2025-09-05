@@ -10,4 +10,16 @@
         public int TimeInMin { get; set; }       // e.g., 24
     }
 
+    public class UserDetailsExcel
+    {
+        public string DisplayName { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string LoginEmail { get; set; }
+        public string Phone { get; set; }
+        public string Courses { get; set; }
+        public string Queries { get; set; }
+        public bool IsMembership {  get; set; }
+    }
+
 }

@@ -17,6 +17,7 @@ namespace ChatBot.Models.Services
         Task<List<UserTypeDistribution>> GetUserTypeDistributionAsync();
         Task<AverageMetricsDto> GetAverageMetricsAsync();
         Task<SessionStatsDto> GetSessionStats();
+        List<UserDetailsExcel> ReadExcel();
         Task<List<AdminLoginLog>> GetAdminLogsAndStatusAsync();
         Task<bool> SaveUserSession(BotSession botSession);
         Task<bool> SaveQueryHistory(QueryHistoryDto dto);

@@ -29,7 +29,7 @@ builder.Services.AddTransient<IAdmin>(s => new AdminRepository(configuration["Co
 builder.Services.AddTransient<IApiLogService>(s => new ApiLogRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IMedicine>(s => new MedicineRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<ISetting>(s => new SettingRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
-builder.Services.AddTransient<IUser>(s => new UserRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
+builder.Services.AddTransient<IUser>(s => new UserRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString(), configuration.GetSection("ApplicationSettings").Get<AppSettings>()));
 builder.Services.AddTransient<IUserMgmtService>(s => new UserMgmtRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IExceptionLog>(s => new ExceptionLogRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 

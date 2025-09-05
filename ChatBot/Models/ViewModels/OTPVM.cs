@@ -10,10 +10,10 @@ namespace Model.ViewModels
     {
         public int OTPId { get; set; }
         public int UserId { get; set; }
+        public string EmailId { get; set; }
         public DateTime OtpTime { get; set; }
         //public string UserName { get; set; } = string.Empty;
         public string OtpNumber { get; set; } = string.Empty;
-        public string OtpType { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
 
     }
