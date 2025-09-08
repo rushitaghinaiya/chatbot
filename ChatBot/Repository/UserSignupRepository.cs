@@ -255,7 +255,56 @@ namespace ChatBot.Repository
             return (false, null);
         }
 
+        public (bool exists, UserDetailsExcel user) VerifyEmail(string email, UserDetailsExcel newUser = null)
+        {
+            if (!File.Exists(_appSettings.UserFilePath))
+                throw new FileNotFoundException("Excel file not found!", _appSettings.UserFilePath);
 
-       
+            using var workbook = new XLWorkbook(_appSettings.UserFilePath);
+            var worksheet = workbook.Worksheets.First();
+
+            foreach (var row in worksheet.RowsUsed().Skip(1)) // skip header row
+            {
+                var cellValue = row.Cell(4).GetString().Trim().ToLower(); // Column D (Login Email)
+
+                if (cellValue == email.Trim().ToLower())
+                {
+                    var user = new UserDetailsExcel
+                    {
+                        DisplayName = row.Cell(1).GetString().Trim(),
+                        FirstName = row.Cell(2).GetString().Trim(),
+                        LastName = row.Cell(3).GetString().Trim(),
+                        LoginEmail = row.Cell(4).GetString().Trim(),
+                        Phone = row.Cell(5).GetString().Trim(),
+                        Courses = row.Cell(6).GetString().Trim(),
+                        IsMembership = bool.TryParse(row.Cell(7).GetString().Trim(), out var result) && result
+                    };
+                    return (true, user);
+                }
+            }
+
+            // If not found, add new user if provided
+            if (newUser != null)
+            {
+                var lastRow = worksheet.LastRowUsed()?.RowNumber() ?? 1; // find last used row
+                var newRow = worksheet.Row(lastRow + 1);
+
+                newRow.Cell(1).Value = newUser.DisplayName ?? "";
+                newRow.Cell(2).Value = newUser.FirstName ?? "";
+                newRow.Cell(3).Value = newUser.LastName ?? "";
+                newRow.Cell(4).Value = newUser.LoginEmail ?? "";
+                newRow.Cell(5).Value = newUser.Phone ?? "";
+                newRow.Cell(6).Value = newUser.Courses ?? "";
+                newRow.Cell(7).Value = newUser.IsMembership;
+
+                workbook.Save();
+                return (false, newUser);
+            }
+
+            return (false, null);
+        }
+
+
+
     }
 }

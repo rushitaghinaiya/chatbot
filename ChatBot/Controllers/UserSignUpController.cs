@@ -473,11 +473,10 @@ namespace ChatBot.Controllers
         /// }
         /// </returns>
         [HttpPost]
-        public IActionResult VerifyEmail([FromForm] string Email)
+        public IActionResult VerifyEmail([FromForm] string Email, [FromForm] string Name)
         {
             if (string.IsNullOrEmpty(Email))
                 return BadRequest(new { Success = false, Data = (string?)null, Message = "Email is required" });
-
 
             try
             {
@@ -485,15 +484,15 @@ namespace ChatBot.Controllers
 
                 if (result.exists)
                 {
-                    //bool isSent = true;
-                   bool isSent = EmailOtpAsync(result.user).Result;
+                    // Send OTP to existing user
+                    bool isSent = EmailOtpAsync(result.user).Result;
                     if (isSent)
                     {
                         return Ok(new
                         {
                             Success = true,
                             Data = result.user,
-                            Message = "User exist"
+                            Message = "User exists, OTP sent successfully"
                         });
                     }
                     else
@@ -501,25 +500,56 @@ namespace ChatBot.Controllers
                         return Ok(new
                         {
                             Success = false,
-                            Data = (string?)null,
-                            Message = "otp not sent"
+                            Data = result.user,
+                            Message = "User exists, but OTP not sent"
                         });
                     }
-
                 }
-
-                return Ok(new
+                else
                 {
-                    Success = false,
-                    Data = (string?)null,
-                    Message = "User not exist"
-                });
+                    // Create new user from Email + Name
+                    var newUser = new UserDetailsExcel
+                    {
+                        DisplayName = Name,
+                        FirstName = Name,
+                        LastName = "",
+                        LoginEmail = Email,
+                        Phone = "",
+                        Courses = "",
+                        IsMembership = false
+                    };
+
+                    // Save new user in Excel
+                    var newResult = _userSignUp.VerifyEmail(Email, newUser);
+
+                    // Send OTP to new user
+                    bool isSent = EmailOtpAsync(newResult.user).Result;
+                    if (isSent)
+                    {
+                        return Ok(new
+                        {
+                            Success = true,
+                            Data = newResult.user,
+                            Message = "New user created, OTP sent successfully"
+                        });
+                    }
+                    else
+                    {
+                        return Ok(new
+                        {
+                            Success = false,
+                            Data = newResult.user,
+                            Message = "New user created, but OTP not sent"
+                        });
+                    }
+                }
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { Success = false, Data = (string?)null, Message = ex.Message });
             }
         }
+
 
 
         /// <summary>
