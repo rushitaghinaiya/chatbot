@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using System.Text;
 using System.Text.Json;
 
 namespace ChatBot.Controllers
@@ -499,6 +500,94 @@ namespace ChatBot.Controllers
                 });
             }
         }
+
+
+        [HttpPost("faq-qna/{companyCode}")]
+        [ProducesResponseType(typeof(ApiResponseVM<object>), 200)]
+        [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
+        [ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
+        public async Task<IActionResult> AskFileQna(
+    [FromRoute] string companyCode,
+    [FromBody] FileQnaRequest request)
+        {
+            _logger.LogInformation("Received File QnA request for company: {CompanyCode}", companyCode);
+
+            // Validate company
+            if (string.IsNullOrEmpty(companyCode) || companyCode != _config.CompanyCode)
+            {
+                return BadRequest(new ApiResponseVM<object>
+                {
+                    Success = false,
+                    Message = $"Invalid company code. Expected: {_config.CompanyCode}"
+                });
+            }
+
+            // Validate required fields
+            if (string.IsNullOrEmpty(request.KbName) || string.IsNullOrEmpty(request.Language))
+            {
+                return BadRequest(new ApiResponseVM<object>
+                {
+                    Success = false,
+                    Message = "kb_name and language are required"
+                });
+            }
+
+            var finalDbType = string.IsNullOrWhiteSpace(request.DbType) ? _config.DbType : request.DbType;
+
+            // Prepare request for Python API
+            var pythonUrl = $"{_config.PythonApiBaseUrl}/api/v1/medicare-knowledgebase/file-qna/{companyCode}";
+
+            var payload = new
+            {
+                question = request.Question,
+                kb_name = request.KbName,
+                language = request.Language,
+                db_type = finalDbType
+            };
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_config.TimeoutSeconds));
+            var jsonContent = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+            _logger.LogInformation("Calling Python API: {PythonUrl}", pythonUrl);
+
+            var response = await _httpClient.PostAsync(pythonUrl, jsonContent, cts.Token);
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation("Python API file-qna call successful");
+
+                if (string.IsNullOrWhiteSpace(responseContent) || responseContent.Trim() == "{}")
+                {
+                    return Ok(new ApiResponseVM<object>
+                    {
+                        Success = false,
+                        Message = "Empty response from Python API"
+                    });
+                }
+
+                var pythonResponse = JsonSerializer.Deserialize<object>(responseContent, _jsonOptions);
+                return Ok(new ApiResponseVM<object>
+                {
+                    Success = true,
+                    Data = pythonResponse,
+                    Message = "Success"
+                });
+            }
+            else
+            {
+                _logger.LogError("Python API file-qna call failed. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, responseContent);
+
+                return BadRequest(new ApiResponseVM<object>
+                {
+                    Success = false,
+                    Message = $"Python API call failed with status {response.StatusCode}",
+                    Data = responseContent
+                });
+            }
+        }
+
 
     }
 }

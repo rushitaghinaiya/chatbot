@@ -449,11 +449,11 @@ namespace ChatBot.Controllers
                 return StatusCode(500, "An error occurred while saving the session");
             }
         }
-
-            [HttpPost("SaveQueryHistory")]
+        [AllowAnonymous]
+        [HttpPost("SaveQueryHistory")]
         public async Task<IActionResult> SaveQueryHistory(QueryHistoryDto queryHistory)
         {
-            if (queryHistory.UserId == 0)
+            if (queryHistory.EmailId == null)
             {
                 return BadRequest("User Not Found");
             }

@@ -25,5 +25,7 @@ namespace ChatBot.Models.Common
 
         public int RefreshTokenExpirationInDays { get; set; } = 7; // Default 7 days
 
+        public string UserFilePath { get; set; }
+
     }
 }
