@@ -7,6 +7,7 @@ namespace ChatBot.Models.Services
     {
         int SaveUser(Users users);
         Users IsExistUser(string number);
+        Users IsExistEmail(string EmailId);
         (bool exists, UserDetailsExcel user) VerifyEmail(string email);
         (bool exists, UserDetailsExcel user) VerifyEmail(string email, UserDetailsExcel newUser = null);
         Task<int> SaveOTP(OTPVM otpVM);

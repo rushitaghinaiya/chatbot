@@ -11,6 +11,7 @@ using Serilog;
 using ChatBot.Middleware;
 using System.Text;
 using ChatBot.Middleware;
+using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
@@ -30,7 +31,7 @@ builder.Services.AddTransient<IApiLogService>(s => new ApiLogRepository(configur
 builder.Services.AddTransient<IMedicine>(s => new MedicineRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<ISetting>(s => new SettingRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IUser>(s => new UserRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString(), configuration.GetSection("ApplicationSettings").Get<AppSettings>()));
-builder.Services.AddTransient<IUserMgmtService>(s => new UserMgmtRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
+builder.Services.AddTransient<IUserMgmtService>(s => new UserMgmtRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString(),configuration.GetSection("ApplicationSettings").Get<AppSettings>()));
 builder.Services.AddTransient<IExceptionLog>(s => new ExceptionLogRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 
 // Register JWT Token Service

@@ -1,7 +1,11 @@
-﻿using ChatBot.Models.Services;
+﻿using ChatBot.Models.Common;
+using ChatBot.Models.Services;
 using ChatBot.Models.ViewModels;
+using ClosedXML.Excel;
 using Dapper;
+using DocumentFormat.OpenXml.Spreadsheet;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Options;
 using static ChatBot.Models.Common.AesEncryptionHelper;
 
 namespace ChatBot.Repository
@@ -9,43 +13,148 @@ namespace ChatBot.Repository
     public class UserMgmtRepository : IUserMgmtService
     {
         private readonly string _connectionString;
-        public UserMgmtRepository(string connectionString)
+        private readonly AppSettings _appsettings;
+        public UserMgmtRepository(string connectionString, AppSettings appsetting)
         {
             _connectionString = connectionString;
+            _appsettings = appsetting;
         }
         public async Task<FreeUsersOverviewDto> GetFreeUsersOverviewAsync()
         {
+
+            // Step 1: Read users from Excel
+            var usersFromExcel = ReadExcel(); // List<UserDetails>
+
             using (var connection = new SqlConnection(_connectionString))
             {
+                // Step 2: Get sessions, query history, and system limits from DB
+                var userSessions = (await connection.QueryAsync<UserSession>(
+                    "SELECT EmailId FROM UserSessions")).ToList();
 
-                var query = @"
-                SELECT 
-                    -- Total Free Users
-                    (SELECT COUNT(*) FROM Users WHERE IsPremium = 0) AS TotalFreeUsers,
+                var queryHistory = (await connection.QueryAsync<QueryHistoryDto>(
+                    @"SELECT  * FROM QueryHistory q
+                         CROSS APPLY OPENJSON(q.ChatJson)
+                         WITH (
+                             QueryText NVARCHAR(MAX) '$.queryText',
+                             ResponseText NVARCHAR(MAX) '$.responseText',
+                             ResponseTime FLOAT '$.responseTime',
+                             Topic NVARCHAR(200) '$.topic',
+                             Status NVARCHAR(50) '$.status'
+                         ) j
+                         WHERE CAST(q.Timestamp AS DATE) = CAST(GETDATE() AS DATE);")).ToList();
 
-                    -- Active Free Users (users having any session)
-                    (SELECT COUNT(DISTINCT us.UserId)
-                     FROM UserSessions us
-                     INNER JOIN Users u ON us.UserId = u.Id
-                     WHERE u.IsPremium = 0) AS ActiveUsers,
+                var freeUserQueryLimit = await connection.ExecuteScalarAsync<int>(
+                    "SELECT FreeUserQueryLimit FROM SystemLimits");
 
-                    -- Inactive Free Users (free users who never had a session)
-                    (SELECT COUNT(*)
-                     FROM Users u
-                     WHERE u.IsPremium = 0 AND u.Id NOT IN (
-                         SELECT DISTINCT us.UserId FROM UserSessions us
-                     )) AS InactiveUsers,
+                // Step 3: Filter free users from Excel (IsMembership == false)
+                var freeUsers = usersFromExcel.Where(u => !u.IsMembership && string.IsNullOrEmpty(u.Courses)).ToList();
 
-                    -- Free Users with >80% of their FreeQueryLimit used
-                    (SELECT COUNT(*) 
-                     FROM Users u
-                     WHERE u.IsPremium = 0 AND 
-                           (SELECT COUNT(*) FROM QueryHistory q WHERE q.UserId = u.Id) >= 0.8 * (select s.FreeUserQueryLimit from SystemLimits s)
-                    ) AS HighUsageUsers";
+                // Active free users = free users having any session
+                var activeUsers = freeUsers
+                    .Count(u => userSessions.Any(s => s.EmailId == u.LoginEmail));
 
-                var result = await connection.QuerySingleAsync<FreeUsersOverviewDto>(query);
-                return result;
+                // Inactive free users = free users with no session
+                var inactiveUsers = freeUsers
+                    .Count(u => !userSessions.Any(s => s.EmailId == u.LoginEmail));
+
+                // Free users with >80% of FreeQueryLimit used
+                var highUsageUsers = freeUsers.Count(u =>
+                {
+                    var queryCount = queryHistory.Count(q => q.EmailId == u.LoginEmail);
+                    return queryCount >= 0.8 * freeUserQueryLimit;
+                });
+
+                // Step 4: Return result
+                return new FreeUsersOverviewDto
+                {
+                    TotalFreeUsers = freeUsers.Count(),
+                    ActiveUsers = activeUsers,
+                    InactiveUsers = inactiveUsers,
+                    HighUsageUsers = highUsageUsers
+                };
             }
+        }
+        public async Task<PaidUsersOverviewDto> GetPaidUsersOverviewAsync()
+        {
+
+            // Step 1: Read users from Excel
+            var usersFromExcel = ReadExcel(); // List<UserDetails>
+
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                // Step 2: Get sessions, query history, and system limits from DB
+                var userSessions = (await connection.QueryAsync<UserSession>(
+                    "SELECT EmailId FROM UserSessions")).ToList();
+
+                var queryHistory = (await connection.QueryAsync<QueryHistoryDto>(
+                    @"SELECT  * FROM QueryHistory q
+                         CROSS APPLY OPENJSON(q.ChatJson)
+                         WITH (
+                             QueryText NVARCHAR(MAX) '$.queryText',
+                             ResponseText NVARCHAR(MAX) '$.responseText',
+                             ResponseTime FLOAT '$.responseTime',
+                             Topic NVARCHAR(200) '$.topic',
+                             Status NVARCHAR(50) '$.status'
+                         ) j
+                         WHERE CAST(q.Timestamp AS DATE) = CAST(GETDATE() AS DATE);")).ToList();
+
+                var paidUserQueryLimit = 100;
+
+                // Step 3: Filter free users from Excel (IsMembership == false)
+                var paidUsers = usersFromExcel.Where(u => u.IsMembership || !string.IsNullOrEmpty(u.Courses)).ToList();
+
+                // Active free users = free users having any session
+                var activeUsers = paidUsers
+                    .Count(u => userSessions.Any(s => s.EmailId == u.LoginEmail));
+
+                // Inactive free users = free users with no session
+                var inactiveUsers = paidUsers
+                    .Count(u => !userSessions.Any(s => s.EmailId == u.LoginEmail));
+
+                // Free users with >80% of FreeQueryLimit used
+                var highUsageUsers = paidUsers.Count(u =>
+                {
+                    var queryCount = queryHistory.Count(q => q.EmailId == u.LoginEmail);
+                    return queryCount >= 0.8 * paidUserQueryLimit;
+                });
+
+                // Step 4: Return result
+                return new PaidUsersOverviewDto
+                {
+                    TotalPaidUsers = paidUsers.Count(),
+                    ActiveUsers = activeUsers,
+                    InactiveUsers = inactiveUsers,
+                    HighUsageUsers = highUsageUsers
+                };
+            }
+        }
+        private List<UserDetailsExcel> ReadExcel()
+        {
+            var users = new List<UserDetailsExcel>();
+
+            using (var workbook = new XLWorkbook(_appsettings.UserFilePath))
+            {
+                var worksheet = workbook.Worksheet(1); // First sheet
+                var rows = worksheet.RangeUsed().RowsUsed().Skip(1); // Skip header row
+
+                foreach (var row in rows)
+                {
+                    var user = new UserDetailsExcel
+                    {
+                        DisplayName = row.Cell(1).GetString(),
+                        FirstName = row.Cell(2).GetString(),
+                        LastName = row.Cell(3).GetString(),
+                        LoginEmail = row.Cell(4).GetString(),
+                        Phone = row.Cell(5).GetString(),
+                        Courses = row.Cell(6).GetString(),
+                        IsMembership = row.Cell(7).GetBoolean()
+                    };
+
+                    users.Add(user);
+                }
+            }
+
+            return users;
         }
 
         public async Task<List<FreeUserQueryTypeDto>> GetFreeUserQueryTypesAsync()
@@ -81,50 +190,180 @@ namespace ChatBot.Repository
             }
         }
 
-        public async Task<List<FreeUserDetail>> GetFreeUserDetailsAsync()
+        public async Task<List<UserDetail>> GetFreeUserDetailsAsync()
         {
-            using (var connection = new SqlConnection(_connectionString))
-            {
-                try
-                {
-                    string query = @"
-                   SELECT 
-                            u.Id AS UserId,
-                            u.Mobile,
-                            CASE 
-                                WHEN MAX(us.LastActiveAt) >= DATEADD(DAY, -2, GETDATE()) THEN 'Active'
-                                ELSE 'Inactive'
-                            END AS Status,
-                            COUNT(q.QueryId) AS UsedQueries,
-                            10 AS QueryLimit,
-                            CONCAT(COUNT(q.QueryId), '/10 (', CAST(COUNT(q.QueryId)*10 AS VARCHAR), '%)') AS QueryUsage,
-                            CASE 
-                                WHEN MAX(us.LastActiveAt) IS NULL THEN ''
-                                WHEN DATEDIFF(MINUTE, MAX(us.LastActiveAt), GETDATE()) < 60 THEN 
-                                    CONCAT(DATEDIFF(MINUTE, MAX(us.LastActiveAt), GETDATE()), ' min ago')
-                                WHEN DATEDIFF(HOUR, MAX(us.LastActiveAt), GETDATE()) < 24 THEN 
-                                    CONCAT(DATEDIFF(HOUR, MAX(us.LastActiveAt), GETDATE()), ' hour ago')
-                                ELSE 
-                                    CONCAT(DATEDIFF(DAY, MAX(us.LastActiveAt), GETDATE()), ' day ago')
-                            END AS LastActivity
-                        FROM Users u
-                        LEFT JOIN QueryHistory q ON u.Id = q.UserId
-                        LEFT JOIN UserSessions us ON u.Id = us.UserId
-                        WHERE u.IsPremium = 0
-                        GROUP BY u.Id, u.Mobile
-                        ORDER BY MAX(us.LastActiveAt) DESC;";
 
-                    var result = await connection.QueryAsync<FreeUserDetail>(query);
-                    foreach (var item in result)
-                    {
-                        item.Mobile = Decrypt(item.Mobile);
-                    }
-                    return result.ToList();
-                }
-                catch (Exception ex)
+            try
+            {
+                // Step 1: Read users from Excel
+                var usersFromExcel = ReadExcel(); // List<UserDetails>
+
+                using (var connection = new SqlConnection(_connectionString))
                 {
-                    throw new Exception("Database error: " + ex.Message);
+                    // Step 2: Fetch sessions + query history from DB
+                    var userSessions = (await connection.QueryAsync<UserSession>(
+                        "SELECT  EmailId, LastActiveAt FROM UserSessions")).ToList();
+
+                    var queryHistory = (await connection.QueryAsync<QueryHistoryDto>(
+                        @"SELECT  * FROM QueryHistory q
+                             CROSS APPLY OPENJSON(q.ChatJson)
+                             WITH (
+                                 QueryText NVARCHAR(MAX) '$.queryText',
+                                 ResponseText NVARCHAR(MAX) '$.responseText',
+                                 ResponseTime FLOAT '$.responseTime',
+                                 Topic NVARCHAR(200) '$.topic',
+                                 Status NVARCHAR(50) '$.status'
+                             ) j
+                             WHERE CAST(q.Timestamp AS DATE) = CAST(GETDATE() AS DATE);")).ToList();
+
+                    var freeUserDetails = new List<UserDetail>();
+                    // Step 3: Filter free users from Excel (IsMembership == false)
+                    var freeUsers = usersFromExcel.Where(u => !u.IsMembership && string.IsNullOrEmpty(u.Courses)).ToList();
+                    // Step 3: Work only on Free Users (IsMembership == false)
+                    foreach (var user in freeUsers)
+                    {
+                        var email = user.LoginEmail;
+
+                        // User sessions for this user
+                        var sessions = userSessions.Where(s => s.EmailId == email).ToList();
+                        var lastActive = sessions.Max(s => (DateTime?)s.LastActiveAt);
+
+                        // Queries for this user
+                        var userQueries = queryHistory.Where(q => q.EmailId == email).ToList();
+                        var usedQueries = userQueries.Count;
+                        var queryLimit = 10; // static limit (can fetch from SystemLimits if needed)
+
+                        // Calculate status
+                        string status = "Inactive";
+                        if (lastActive.HasValue && lastActive.Value >= DateTime.Now.AddDays(-2))
+                            status = "Active";
+
+                        // Query usage in "x/10 (y%)" format
+                        var queryUsage = $"{usedQueries}/{queryLimit} ({usedQueries * 10}%)";
+
+                        // Calculate last activity in friendly format
+                        string lastActivity = "";
+                        if (lastActive.HasValue)
+                        {
+                            var diff = DateTime.Now - lastActive.Value;
+
+                            if (diff.TotalMinutes < 60)
+                                lastActivity = $"{(int)diff.TotalMinutes} min ago";
+                            else if (diff.TotalHours < 24)
+                                lastActivity = $"{(int)diff.TotalHours} hour ago";
+                            else
+                                lastActivity = $"{(int)diff.TotalDays} day ago";
+                        }
+
+                        // Build result
+                        freeUserDetails.Add(new UserDetail
+                        {
+                            UserId = email, // since no DB Id, use Email as identifier
+                            Status = status,
+                            UsedQueries = usedQueries,
+                            QueryLimit = queryLimit,
+                            QueryUsage = queryUsage,
+                            LastActivity = lastActivity
+                        });
+                    }
+
+                    return freeUserDetails
+                        .OrderByDescending(u => u.LastActivity) // similar to ORDER BY MAX(LastActiveAt) DESC
+                        .ToList();
                 }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error while fetching free user details: " + ex.Message);
+            }
+        }
+
+        public async Task<List<UserDetail>> GetPaidUserDetailsAsync()
+        {
+
+            try
+            {
+                // Step 1: Read users from Excel
+                var usersFromExcel = ReadExcel(); // List<UserDetails>
+
+                using (var connection = new SqlConnection(_connectionString))
+                {
+                    // Step 2: Fetch sessions + query history from DB
+                    var userSessions = (await connection.QueryAsync<UserSession>(
+                        "SELECT  EmailId, LastActiveAt FROM UserSessions")).ToList();
+
+                    var queryHistory = (await connection.QueryAsync<QueryHistoryDto>(
+                        @"SELECT  * FROM QueryHistory q
+                             CROSS APPLY OPENJSON(q.ChatJson)
+                             WITH (
+                                 QueryText NVARCHAR(MAX) '$.queryText',
+                                 ResponseText NVARCHAR(MAX) '$.responseText',
+                                 ResponseTime FLOAT '$.responseTime',
+                                 Topic NVARCHAR(200) '$.topic',
+                                 Status NVARCHAR(50) '$.status'
+                             ) j
+                             WHERE CAST(q.Timestamp AS DATE) = CAST(GETDATE() AS DATE);")).ToList();
+
+                    var paidUserDetails = new List<UserDetail>();
+                    // Step 3: Filter free users from Excel (IsMembership == false)
+                    var freeUsers = usersFromExcel.Where(u => u.IsMembership || !string.IsNullOrEmpty(u.Courses)).ToList();
+                    // Step 3: Work only on Free Users (IsMembership == false)
+                    foreach (var user in freeUsers)
+                    {
+                        var email = user.LoginEmail;
+
+                        // User sessions for this user
+                        var sessions = userSessions.Where(s => s.EmailId == email).ToList();
+                        var lastActive = sessions.Max(s => (DateTime?)s.LastActiveAt);
+
+                        // Queries for this user
+                        var userQueries = queryHistory.Where(q => q.EmailId == email).ToList();
+                        var usedQueries = userQueries.Count;
+                        var queryLimit = 10; // static limit (can fetch from SystemLimits if needed)
+
+                        // Calculate status
+                        string status = "Inactive";
+                        if (lastActive.HasValue && lastActive.Value >= DateTime.Now.AddDays(-2))
+                            status = "Active";
+
+                        // Query usage in "x/10 (y%)" format
+                        //var queryUsage = $"{usedQueries}/∞ ({usedQueries * 10}%)";
+                        var queryUsage = $"{usedQueries}/∞";
+
+                        // Calculate last activity in friendly format
+                        string lastActivity = "";
+                        if (lastActive.HasValue)
+                        {
+                            var diff = DateTime.Now - lastActive.Value;
+
+                            if (diff.TotalMinutes < 60)
+                                lastActivity = $"{(int)diff.TotalMinutes} min ago";
+                            else if (diff.TotalHours < 24)
+                                lastActivity = $"{(int)diff.TotalHours} hour ago";
+                            else
+                                lastActivity = $"{(int)diff.TotalDays} day ago";
+                        }
+
+                        // Build result
+                        paidUserDetails.Add(new UserDetail
+                        {
+                            UserId = email, // since no DB Id, use Email as identifier
+                            Status = status,
+                            UsedQueries = usedQueries,
+                            QueryLimit = queryLimit,
+                            QueryUsage = queryUsage,
+                            LastActivity = lastActivity
+                        });
+                    }
+
+                    return paidUserDetails
+                        .OrderByDescending(u => u.LastActivity) // similar to ORDER BY MAX(LastActiveAt) DESC
+                        .ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error while fetching paid user details: " + ex.Message);
             }
         }
 

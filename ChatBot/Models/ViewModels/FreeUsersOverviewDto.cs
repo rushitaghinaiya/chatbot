@@ -8,13 +8,21 @@
         public int HighUsageUsers { get; set; } // >80% usage
     }
 
+    public class PaidUsersOverviewDto
+    {
+        public int TotalPaidUsers { get; set; }
+        public int ActiveUsers { get; set; }
+        public int InactiveUsers { get; set; }
+        public int HighUsageUsers { get; set; } // >80% usage
+    }
+
     public class FreeUserQueryTypeDto
     {
         public string QueryType { get; set; }
         public int Count { get; set; }
     }
 
-    public class FreeUserDetail
+    public class UserDetail
     {
         public string UserId { get; set; }
         public string Mobile { get; set; }

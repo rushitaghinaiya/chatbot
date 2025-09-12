@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using Model.ViewModels;
 using Newtonsoft.Json;
 using VRMDBCommon2023;
+using API.Common;
 
 namespace ChatBot.Controllers
 {
@@ -21,6 +22,7 @@ namespace ChatBot.Controllers
         private readonly AppSettings _appSetting;
         private readonly IUserSignUp _userSignUp;
         private readonly IAdmin _admin;
+        private readonly EmailSender _emailSender;
         private readonly IUser _user;
         private readonly IJwtTokenService _jwtTokenService;
         private readonly ILogger<AdminController> _logger;
@@ -37,6 +39,7 @@ namespace ChatBot.Controllers
             _userSignUp = userSignUp;
             _admin = admin;
             _user = user;
+            _emailSender = new EmailSender(appSettings);
             _jwtTokenService = jwtTokenService;
             _logger = logger;
         }
@@ -51,13 +54,13 @@ namespace ChatBot.Controllers
         [ProducesResponseType(typeof(ApiResponseVM<Users>), 200)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
-        public async Task<IActionResult> AdminLogin([FromQuery] string mobile)
+        public async Task<IActionResult> AdminLogin([FromQuery] string EmailId)
         {
             try
             {
-                _logger.LogInformation("Admin login attempt for mobile: {Mobile}", mobile);
+                _logger.LogInformation("Admin login attempt for EmailId: {EmailId}", EmailId);
 
-                if (string.IsNullOrWhiteSpace(mobile))
+                if (string.IsNullOrWhiteSpace(EmailId))
                 {
                     return BadRequest(new ApiResponseVM<object>
                     {
@@ -67,11 +70,11 @@ namespace ChatBot.Controllers
                     });
                 }
 
-                var users1 = _userSignUp.IsExistUser(mobile);
+                var users1 = _userSignUp.IsExistEmail(EmailId);
 
                 if (users1 == null)
                 {
-                    _logger.LogWarning("Admin login failed - user not found for mobile: {Mobile}", mobile);
+                    _logger.LogWarning("Admin login failed - user not found for emailId: {EmailId}", EmailId);
                     return BadRequest(new ApiResponseVM<object>
                     {
                         Success = false,
@@ -82,7 +85,7 @@ namespace ChatBot.Controllers
 
                 if (users1.Role != "admin")
                 {
-                    _logger.LogWarning("Admin login failed - user is not admin for mobile: {Mobile}", mobile);
+                    _logger.LogWarning("Admin login failed - user is not admin for emailId: {EmailId}", EmailId);
                     return BadRequest(new ApiResponseVM<object>
                     {
                         Success = false,
@@ -91,10 +94,10 @@ namespace ChatBot.Controllers
                     });
                 }
 
-                var otpSent = await MobileOtpAsync(users1);
+                var otpSent = await EmailOtpAsync(users1);
                 if (otpSent)
                 {
-                    _logger.LogInformation("Admin login successful for mobile: {Mobile}", mobile);
+                    _logger.LogInformation("Admin login successful for emailId: {EmailId}", EmailId);
                     return Ok(new ApiResponseVM<Users>
                     {
                         Success = true,
@@ -104,7 +107,7 @@ namespace ChatBot.Controllers
                 }
                 else
                 {
-                    _logger.LogError("Failed to send OTP for admin login: {Mobile}", mobile);
+                    _logger.LogError("Failed to send OTP for admin login: {Email}", EmailId);
                     return StatusCode(500, new ApiResponseVM<object>
                     {
                         Success = false,
@@ -115,7 +118,7 @@ namespace ChatBot.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during admin login for mobile: {Mobile}", mobile);
+                _logger.LogError(ex, "Error during admin login for emailId: {EmailId}", EmailId);
                 return StatusCode(500, new ApiResponseVM<object>
                 {
                     Success = false,
@@ -160,7 +163,7 @@ namespace ChatBot.Controllers
                     });
                 }
 
-                if (modelVM.UserId <= 0)
+                if (modelVM.EmailId == null)
                 {
                     return BadRequest(new ApiResponseVM<object>
                     {
@@ -208,7 +211,7 @@ namespace ChatBot.Controllers
                 }
 
                 // Get admin user details
-                var adminUser = await Task.Run(() =>_user.GetUserById(modelVM.UserId), cts.Token);
+                var adminUser = await Task.Run(() =>_user.GetUserByEmailId(modelVM.EmailId), cts.Token);
 
                 // Verify user is admin
                 if (adminUser == null || adminUser.Role != "admin")
@@ -532,6 +535,40 @@ namespace ChatBot.Controllers
                 return mobile;
 
             return mobile.Substring(0, 2) + "****" + mobile.Substring(mobile.Length - 2);
+        }
+
+        private async Task<bool> EmailOtpAsync(Users users)
+        {
+            try
+            {
+                var modelVM = new OTPVM
+                {
+                    OtpNumber = StringUtilities.RandomString(6),
+                    CreatedAt = DateTime.Now,
+                    EmailId = users.Email.ToString(),
+                };
+
+                var otpSaved = await _userSignUp.SaveOTP(modelVM);
+                if (otpSaved > 0)
+                {
+                    UserDetailsExcel userDetails=new UserDetailsExcel();
+                    userDetails.LoginEmail=users.Email;
+
+                    _ = _emailSender.SendOtpEmail(userDetails, modelVM.OtpNumber);
+                    _logger.LogInformation("OTP sent successfully to email: {Email}", users.Email);
+                    return true;
+                }
+                else
+                {
+                    _logger.LogError("Failed to save OTP for admin user: {UserId}", users.Email);
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending OTP to email: {Email}", users.Email);
+                return false;
+            }
         }
     }
 }

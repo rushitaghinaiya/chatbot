@@ -142,7 +142,8 @@ namespace ChatBot.Controllers
             [FromQuery] string question,
             [FromQuery] string? kbName = null,
             [FromQuery] string? language = null,
-            [FromQuery] string? documentCategory = null,
+            [FromQuery] string? userType = null,
+            [FromQuery] List<string>? documentCategory = null,
             [FromQuery] string? dbType = null)
         {
             _logger.LogInformation("Received Q&A request for company: {CompanyCode}, Question: {Question}",
@@ -175,9 +176,16 @@ namespace ChatBot.Controllers
             pythonUrl += $"&kb_name={Uri.EscapeDataString(finalKbName)}";
             pythonUrl += $"&language={Uri.EscapeDataString(finalLanguage)}";
 
-            if (!string.IsNullOrEmpty(documentCategory))
+            //if (!string.IsNullOrEmpty(userType))
+            //{
+            //    pythonUrl += $"&userType={Uri.EscapeDataString(userType)}";
+            //}
+            if (documentCategory != null && documentCategory.Any())
             {
-                pythonUrl += $"&document_category={Uri.EscapeDataString(documentCategory)}";
+                foreach (var category in documentCategory)
+                {
+                    pythonUrl += $"&category={Uri.EscapeDataString(category)}";
+                }
             }
             pythonUrl += $"&db_type={Uri.EscapeDataString(finalDbType)}";
 

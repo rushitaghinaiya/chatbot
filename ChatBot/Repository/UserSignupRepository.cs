@@ -156,7 +156,7 @@ namespace ChatBot.Repository
                     mobile = Encrypt(mobile);
                     Users user = new Users();
                     user = connection.Query<Users>(
-                        sql: "SELECT * FROM Users u WHERE u.EmailId = @EmailId;",
+                        sql: "SELECT * FROM Users u WHERE u.mobile = @mobile;",
                         param: new { mobile },
                         commandType: CommandType.Text
                     ).FirstOrDefault();
@@ -173,29 +173,20 @@ namespace ChatBot.Repository
             }
         }
 
-        public Task<int> SaveOTP(OTPVM otpVM)
+        public Users IsExistEmail(string EmailId)
         {
-            int rowsAffectedCount = 0;
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 try
                 {
-                    connection.Open();
-                    SqlTransaction transaction = connection.BeginTransaction();
-                    rowsAffectedCount += connection.Query<int>(
-                     @"INSERT INTO AuthenticationOtp(EmailId, OtpNumber, OtpTime, CreatedAt)
-                       VALUES(@EmailId, @OtpNumber, @OtpTime, @CreatedAt);
-                       SELECT CAST(SCOPE_IDENTITY() as int);",
-                        commandType: CommandType.Text,
-                        param: new
-                        {
-                            otpVM.EmailId,
-                            otpVM.OtpNumber,
-                            OtpTime = DateTime.Now,
-                            CreatedAt = DateTime.Now
-                        }, transaction: transaction).FirstOrDefault();
-                    transaction.Commit();
-                    return Task.FromResult(rowsAffectedCount);
+                    Users user = new Users();
+                    user = connection.Query<Users>(
+                        sql: "SELECT * FROM Users u WHERE u.email = @EmailId;",
+                        param: new { EmailId },
+                        commandType: CommandType.Text
+                    ).FirstOrDefault();
+                   
+                    return user;
                 }
                 catch (Exception)
                 {
@@ -203,6 +194,67 @@ namespace ChatBot.Repository
                 }
             }
         }
+
+        public Task<int> SaveOTP(OTPVM otpVM)
+        {
+            int newId = 0;
+
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    connection.Open();
+                    SqlTransaction transaction = connection.BeginTransaction();
+
+                    if (otpVM.UserId > 0)
+                    {
+                        // Insert with UserId
+                        newId = connection.Query<int>(
+                            @"INSERT INTO AuthenticationOtp (EmailId, UserId, OtpNumber, OtpTime, CreatedAt)
+                      VALUES (@EmailId, @UserId, @OtpNumber, @OtpTime, @CreatedAt);
+                      SELECT CAST(SCOPE_IDENTITY() as int);",
+                            new
+                            {
+                                otpVM.EmailId,
+                                otpVM.UserId,
+                                otpVM.OtpNumber,
+                                OtpTime = DateTime.Now,
+                                CreatedAt = DateTime.Now
+                            },
+                            commandType: CommandType.Text,
+                            transaction: transaction
+                        ).FirstOrDefault();
+                    }
+                    else
+                    {
+                        // Insert without UserId
+                        newId = connection.Query<int>(
+                            @"INSERT INTO AuthenticationOtp (EmailId, OtpNumber, OtpTime, CreatedAt)
+                      VALUES (@EmailId, @OtpNumber, @OtpTime, @CreatedAt);
+                      SELECT CAST(SCOPE_IDENTITY() as int);",
+                            new
+                            {
+                                otpVM.EmailId,
+                                otpVM.OtpNumber,
+                                OtpTime = DateTime.Now,
+                                CreatedAt = DateTime.Now
+                            },
+                            commandType: CommandType.Text,
+                            transaction: transaction
+                        ).FirstOrDefault();
+                    }
+
+                    transaction.Commit();
+                    return Task.FromResult(newId);
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }
+        }
+
+
 
         public OTPVM GetOTP(OTPVM otpVM)
         {
@@ -213,9 +265,9 @@ namespace ChatBot.Repository
                     otpVM = connection.QueryAsync<OTPVM>(@"
                         SELECT TOP 1 OtpNumber, OtpTime 
                         FROM AuthenticationOtp 
-                        WHERE EmailId = @emailid 
+                        WHERE EmailId = @emailid OR UserId=@userId
                         ORDER BY Id DESC",
-                        param: new { emailid = otpVM.EmailId}).Result.FirstOrDefault();
+                        param: new { emailid = otpVM.EmailId,userId=otpVM.UserId}).Result.FirstOrDefault();
                     return otpVM;
                 }
                 catch (Exception)
@@ -305,6 +357,7 @@ namespace ChatBot.Repository
         }
 
 
+        
 
     }
 }

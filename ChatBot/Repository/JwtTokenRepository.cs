@@ -27,18 +27,18 @@ namespace ChatBot.Repository
         public AuthenticationModel Authenticate(Users users)
         {
             AuthenticationModel response = new AuthenticationModel();
-            if (users.Id > 0)
+            if (users.Email !=null)
             {
 
-                var userDetail = _userService.GetUserList().Where(a => a.Id == users.Id).FirstOrDefault();
-                if (userDetail != null)
+                var userDetail = _userService.GetUserByEmailId(users.Email);
+                if (users != null)
                 {
                     string jwtToken = GenerateAccessToken(users);
-                    response.UserName = userDetail.Name;
+                    response.UserName = users.Name;
                     response.Token = jwtToken;
-                    response.Email = userDetail.Email;
+                    response.Email = users.Email;
                     response.IsAuthenticated = true;
-                    var refreshToken = _userService.GetRefreshTokenByUserId(users.Id);
+                    var refreshToken = _userService.GetRefreshTokenByEmailId(users.Email);
 
 
                     if (refreshToken.Any(a => a.IsActive))
@@ -54,6 +54,7 @@ namespace ChatBot.Repository
                         response.RefreshToken = newrefreshToken.Token;
                         response.RefreshTokenExpiration = newrefreshToken.Expires;
                         newrefreshToken.UserId = users.Id;
+                        newrefreshToken.EmailId=users.Email;
                         _userService.SaveRefreshToken(newrefreshToken);
                     }
                     RefreshToken refreshToken1 = new RefreshToken();
@@ -86,9 +87,8 @@ namespace ChatBot.Repository
                 new Claim(JwtRegisteredClaimNames.Sub, _jwtConfig.Subject),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim(JwtRegisteredClaimNames.Iat, DateTime.UtcNow.ToString()),
-                CreateClaim("UserId", user.Id.ToString()),
-                CreateClaim("UserName", user.Name),
-                CreateClaim("ContactNo", user.Mobile),
+                CreateClaim("EmailId", user.Email.ToString()),
+                CreateClaim("UserName", user.Name)
             };
 
 

@@ -2,6 +2,7 @@
 using ChatBot.Models.Common;
 using ChatBot.Models.Services;
 using ChatBot.Models.ViewModels;
+using DocumentFormat.OpenXml.Spreadsheet;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.Options;
 using Model.ViewModels;
 using Newtonsoft.Json;
 using VRMDBCommon2023;
+using Users = ChatBot.Models.ViewModels.Users;
 
 namespace ChatBot.Controllers
 {
@@ -20,6 +22,7 @@ namespace ChatBot.Controllers
     {
         private readonly AppSettings _appSetting;
         private readonly IUserSignUp _userSignUp;
+        private readonly IUser _user;
         private EmailSender _emailSender;
         private readonly IJwtTokenService _jwtTokenService;
         private readonly ILogger<UserSignUpController> _logger;
@@ -28,10 +31,12 @@ namespace ChatBot.Controllers
             IUserSignUp userSignUp,
             IJwtTokenService jwtTokenService,
             IOptions<AppSettings> appSettings,
+            IUser user,
             ILogger<UserSignUpController> logger)
         {
             _appSetting = appSettings.Value;
             _userSignUp = userSignUp;
+            _user = user;
             _emailSender = new EmailSender(appSettings);
             _jwtTokenService = jwtTokenService;
             _logger = logger;
@@ -43,14 +48,14 @@ namespace ChatBot.Controllers
         /// <param name="userVM">User view model containing mobile number and email.</param>
         /// <returns>Returns success response if OTP sent successfully, otherwise error response.</returns>
         [HttpPost]
-        [ProducesResponseType(typeof(ApiResponseVM<Users>), 200)]
+        [ProducesResponseType(typeof(ApiResponseVM<Models.ViewModels.Users>), 200)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
         public async Task<IActionResult> SignUp([FromBody] UserVM userVM)
         {
             try
             {
-                _logger.LogInformation("User signup attempt for mobile: {Mobile}", userVM?.Mobile);
+                _logger.LogInformation("User signup attempt for emailId: {EmailId}", userVM?.Mobile);
 
                 if (userVM == null)
                 {
@@ -103,12 +108,12 @@ namespace ChatBot.Controllers
                     var savedId = await Task.Run(() => _userSignUp.SaveUser(users1), cts.Token);
                     users1.Id = savedId;
 
-                    _logger.LogInformation("New user created with ID: {UserId} for mobile: {Mobile}", savedId, userVM.Mobile);
+                    _logger.LogInformation("New user created with ID: {UserId} for emailId: {EmailId}", savedId, userVM.Mobile);
                 }
                 else
                 {
                     users1 = existingUser;
-                    _logger.LogInformation("Existing user found with ID: {UserId} for mobile: {Mobile}", users1.Id, userVM.Mobile);
+                    _logger.LogInformation("Existing user found with ID: {UserId} for emailId: {EmailId}", users1.Id, userVM.Mobile);
                 }
 
                 // Remove sensitive info before returning
@@ -133,7 +138,7 @@ namespace ChatBot.Controllers
             }
             catch (TaskCanceledException)
             {
-                _logger.LogError("User signup timed out for mobile: {Mobile}", userVM?.Mobile);
+                _logger.LogError("User signup timed out for emailId: {EmailId}", userVM?.Mobile);
                 return StatusCode(408, new ApiResponseVM<object>
                 {
                     Success = false,
@@ -143,7 +148,7 @@ namespace ChatBot.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during user signup for mobile: {Mobile}", userVM?.Mobile);
+                _logger.LogError(ex, "Error during user signup for emailId: {EmailId}", userVM?.Mobile);
                 return StatusCode(500, new ApiResponseVM<object>
                 {
                     Success = false,
@@ -166,7 +171,7 @@ namespace ChatBot.Controllers
         {
             try
             {
-                _logger.LogInformation("OTP verification attempt for enail ID: {UserId}", modelVM?.EmailId);
+                _logger.LogInformation("OTP verification attempt for email ID: {EmailId}", modelVM?.EmailId);
 
                 if (modelVM == null)
                 {
@@ -235,7 +240,11 @@ namespace ChatBot.Controllers
                     });
                 }
 
-          
+                var result = _userSignUp.VerifyEmail(modelVM.EmailId);
+                Users users = new Users();
+                users.Email = result.user.LoginEmail;
+                users.Name = result.user.FirstName;
+                // Get admin user details
 
                 // OTP verification successful, log the successful login
                 var loginLogVM = new LoginLogVM
@@ -247,15 +256,15 @@ namespace ChatBot.Controllers
                 };
 
                // _userSignUp.SaveLoginLog(loginLogVM);
-                // var token = _jwtTokenService.Authenticate(modelVM.UserId);
+                 var token = _jwtTokenService.Authenticate(users);
                 
 
                 _logger.LogInformation("OTP verification successful and JWT tokens issued for email ID: {EmailId}", modelVM?.EmailId);
 
-                return Ok(new ApiResponseVM<LoginResponse>
+                return Ok(new ApiResponseVM<AuthenticationModel>
                 {
                     Success = true,
-                    Data = null,
+                    Data = token,
                     Message = "otp verified."
                 });
             }

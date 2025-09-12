@@ -6,7 +6,8 @@ namespace ChatBot.Models.Services
     {
         List<Users> GetUserList();
         Users GetUserById(int userId);
-        Task UpdateSessionAsync(int? userId, string sessionKey, string ip, string agent);
+        Users GetUserByEmailId(string emailId);
+        Task UpdateSessionAsync(string? emailId, string sessionKey, string ip, string agent);
         List<UserSession> GetActiveSessions();
         UserStatsDto GetUserStats();
         List<UserChatbotStatsDto> GetUserChatbotStats();
@@ -21,7 +22,7 @@ namespace ChatBot.Models.Services
         Task<List<AdminLoginLog>> GetAdminLogsAndStatusAsync();
         Task<bool> SaveUserSession(BotSession botSession);
         Task<bool> SaveQueryHistory(QueryHistoryDto dto);
-        List<RefreshToken> GetRefreshTokenByUserId(int userId);
+        List<RefreshToken> GetRefreshTokenByEmailId(string emailId);
         int SaveRefreshToken(RefreshToken refreshToken);
         bool UpdateRefreshToken(RefreshToken refreshToken);
         Users GetUserByRefreshToken(string token);

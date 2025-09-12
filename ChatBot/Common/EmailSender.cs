@@ -39,11 +39,11 @@ namespace API.Common
             string htmlContent = string.Empty;
             try
             {
-                string ProductName = string.IsNullOrEmpty(_appSettings.ProductName.ReturnString()) ? "The Medibank" : _appSettings.ProductName.ReturnString();
+                string ProductName = string.IsNullOrEmpty(_appSettings.ProductName.ReturnString()) ? "Icare Life" : _appSettings.ProductName.ReturnString();
                 StringBuilder sb = new StringBuilder();
                 StreamReader sr = new StreamReader(htmlTemplate);
                 sb.Append(sr.ReadToEnd()
-                 .Replace("@PatientName", string.IsNullOrEmpty(userDetailVM.FirstName)?"User": userDetailVM.FirstName)
+                 .Replace("@PatientName", string.IsNullOrEmpty(userDetailVM.FirstName)?"Admin": userDetailVM.FirstName)
                  .Replace("@ProductName", ProductName)
                  .Replace("@OtpNumber", otpNumber));
                 sr.Close();
