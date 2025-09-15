@@ -13,7 +13,7 @@ namespace ChatBot.Controllers
 
     [Route("v1/[controller]")]
     [ApiController] 
-    //[Authorize] // Requires JWT authentication
+    [Authorize] // Requires JWT authentication
     [Produces("application/json")]
     public class MedicareKnowledgeBaseController : ControllerBase
     {
@@ -133,7 +133,7 @@ namespace ChatBot.Controllers
         // Handles Q&A requests for Medicare knowledge base files.
         // Validates input and proxies the question to the Python API.
         // Returns the answer from the knowledge base.
-
+        [AllowAnonymous]
         [HttpPost("file-qna")]
         [ProducesResponseType(typeof(ApiResponseVM<QnAResponse>), 200)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
@@ -270,17 +270,17 @@ namespace ChatBot.Controllers
         // Gets the list of knowledge bases for a company.
         // Validates input and proxies the request to the Python API.
         // Returns the list of available knowledge bases.
-        [HttpGet("kb-list/{companyCode}")]
+        [HttpGet("kb-list")]
         [ProducesResponseType(typeof(ApiResponseVM<KnowledgeBaseListResponse>), 200)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
         public async Task<IActionResult> GetKnowledgeBaseList(
-            [FromRoute] string? companyCode=null,
+            [FromQuery] string? companyCode=null,
             [FromQuery] string? dbType = null)
         {
             _logger.LogInformation("Received knowledge base list request for company: {CompanyCode}", companyCode);
 
-            if ( companyCode != _config.CompanyCode)
+            if (string.IsNullOrEmpty( _config.CompanyCode))
             {
                 return BadRequest(new ApiResponseVM<object>
                 {

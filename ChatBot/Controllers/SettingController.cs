@@ -9,7 +9,7 @@ using Microsoft.Extensions.Options;
 namespace ChatBot.Controllers
 {
     [ApiController] 
-    /*[Authorize]*/ // Requires JWT authentication
+    [Authorize] // Requires JWT authentication
     [Route("v1/[controller]")]
     [EnableCors("allowCors")]
     [Produces("application/json")]
@@ -31,6 +31,7 @@ namespace ChatBot.Controllers
             _logger = logger;
             _userSignUp = userSignUp;
         }
+        [AllowAnonymous]
         [HttpGet("get_languages")]
         public async Task<IActionResult> GetLanguage()
         {
@@ -111,6 +112,7 @@ namespace ChatBot.Controllers
 
         // --- System Limits ---
         [HttpGet("get_system_limits")]
+        [AllowAnonymous]
         public IActionResult GetSystemLimits()
         {
             var result = _setting.GetSystemLimits();
