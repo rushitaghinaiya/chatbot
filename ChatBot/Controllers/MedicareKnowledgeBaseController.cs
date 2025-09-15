@@ -18,6 +18,7 @@ namespace ChatBot.Controllers
     public class MedicareKnowledgeBaseController : ControllerBase
     {
         private readonly HttpClient _httpClient;
+
         private readonly MedicareConfig _config;
         private readonly ILogger<MedicareKnowledgeBaseController> _logger;
         private readonly JsonSerializerOptions _jsonOptions;
@@ -133,13 +134,13 @@ namespace ChatBot.Controllers
         // Validates input and proxies the question to the Python API.
         // Returns the answer from the knowledge base.
 
-        [HttpPost("file-qna/{companyCode}")]
+        [HttpPost("file-qna")]
         [ProducesResponseType(typeof(ApiResponseVM<QnAResponse>), 200)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
         public async Task<IActionResult> GetAnswer(
-            [FromRoute] string companyCode,
-            [FromQuery] string question,
+            [FromRoute] string? companyCode=null,
+            [FromQuery] string? question = null,
             [FromQuery] string? kbName = null,
             [FromQuery] string? language = null,
             [FromQuery] string? userType = null,
@@ -149,7 +150,7 @@ namespace ChatBot.Controllers
             _logger.LogInformation("Received Q&A request for company: {CompanyCode}, Question: {Question}",
                 companyCode, question);
 
-            if (string.IsNullOrEmpty(companyCode) || companyCode != _config.CompanyCode)
+            if (string.IsNullOrEmpty( _config.CompanyCode))
             {
                 return BadRequest(new ApiResponseVM<object>
                 {
@@ -170,8 +171,9 @@ namespace ChatBot.Controllers
             var finalKbName = kbName ?? _config.KbName;
             var finalLanguage = language ?? _config.Language;
             var finalDbType = dbType ?? _config.DbType;
+            companyCode = companyCode ?? _config.CompanyCode;
 
-            var pythonUrl = $"{_config.PythonApiBaseUrl}/api/v1/medicare-knowledgebase/file-qna/{companyCode}";
+            var pythonUrl = $"{_config.PythonApiBaseUrl}/api/v1/medicare-knowledgebase/file-qna/{_config.CompanyCode}";
             pythonUrl += $"?question={Uri.EscapeDataString(question)}";
             pythonUrl += $"&kb_name={Uri.EscapeDataString(finalKbName)}";
             pythonUrl += $"&language={Uri.EscapeDataString(finalLanguage)}";
@@ -273,12 +275,12 @@ namespace ChatBot.Controllers
         [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
         public async Task<IActionResult> GetKnowledgeBaseList(
-            [FromRoute] string companyCode,
+            [FromRoute] string? companyCode=null,
             [FromQuery] string? dbType = null)
         {
             _logger.LogInformation("Received knowledge base list request for company: {CompanyCode}", companyCode);
 
-            if (string.IsNullOrEmpty(companyCode) || companyCode != _config.CompanyCode)
+            if ( companyCode != _config.CompanyCode)
             {
                 return BadRequest(new ApiResponseVM<object>
                 {
@@ -289,7 +291,7 @@ namespace ChatBot.Controllers
 
             var finalDbType = dbType ?? _config.DbType;
 
-            var pythonUrl = $"{_config.PythonApiBaseUrl}/api/v1/medicare-knowledgebase/kb-list/{companyCode}";
+            var pythonUrl = $"{_config.PythonApiBaseUrl}/api/v1/medicare-knowledgebase/kb-list/{_config.CompanyCode}";
             pythonUrl += $"?db_type={Uri.EscapeDataString(finalDbType)}";
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_config.TimeoutSeconds));
