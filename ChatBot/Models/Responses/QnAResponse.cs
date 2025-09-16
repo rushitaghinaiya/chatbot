@@ -16,7 +16,7 @@
     public class QnaResponse
     {
         public string Question { get; set; }
-        public List<Answer> Answers { get; set; }
+        public List<Answer> Answer { get; set; }
     }
 
     public class Answer

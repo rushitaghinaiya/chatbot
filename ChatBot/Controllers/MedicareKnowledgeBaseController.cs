@@ -147,7 +147,7 @@ namespace ChatBot.Controllers
             [FromQuery] List<string>? documentCategory = null,
             [FromQuery] string? dbType = null)
         {
-            _logger.LogInformation("Received Q&A request for company: {CompanyCode}, Question: {Question}",
+                    _logger.LogInformation("Received Q&A request for company: {CompanyCode}, Question: {Question}",
                 companyCode, question);
 
             if (string.IsNullOrEmpty( _config.CompanyCode))
