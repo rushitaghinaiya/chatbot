@@ -124,6 +124,20 @@ namespace ChatBot.Controllers
             });
         }
 
+        // --- Courses ---
+        [HttpGet("get_courses")]
+        [AllowAnonymous]
+        public IActionResult GetCourses()
+        {
+            var result = _setting.GetCourses();
+            return Ok(new ApiResponseVM<List<Course>>
+            {
+                Success = true,
+                Data = result,
+                Message = "Courses fetch successfully.",
+            });
+        }
+
         [HttpPut("update_system_limits")]
         public IActionResult UpdateSystemLimits(SystemLimits model)
         {

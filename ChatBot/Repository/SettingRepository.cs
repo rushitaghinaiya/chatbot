@@ -169,6 +169,24 @@ namespace ChatBot.Repository
                 }
             }
         }
+        public List<Course>? GetCourses()
+        {
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    var setting = connection.QueryAsync<Course>(
+                        "SELECT * FROM course"
+                    ).Result.ToList();
+
+                    return setting;
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }
+        }
         public bool UpdateSystemLimits(SystemLimits model)
         {
             using (SqlConnection connection = new SqlConnection(_connectionString))

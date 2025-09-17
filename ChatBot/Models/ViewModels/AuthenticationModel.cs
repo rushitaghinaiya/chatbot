@@ -7,6 +7,7 @@
         public string UserName { get; set; }
         public string Email { get; set; }
         public string Token { get; set; }
+        public List<Course> Courses { get; set; }
         //[JsonIgnore]
         public string RefreshToken { get; set; }
         public DateTime RefreshTokenExpiration { get; set; }

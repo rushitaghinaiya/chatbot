@@ -22,6 +22,7 @@ namespace ChatBot.Controllers
     {
         private readonly AppSettings _appSetting;
         private readonly IUserSignUp _userSignUp;
+        private readonly ISetting _setting;
         private readonly IUser _user;
         private EmailSender _emailSender;
         private readonly IJwtTokenService _jwtTokenService;
@@ -31,10 +32,12 @@ namespace ChatBot.Controllers
             IUserSignUp userSignUp,
             IJwtTokenService jwtTokenService,
             IOptions<AppSettings> appSettings,
+            ISetting setting,
             IUser user,
             ILogger<UserSignUpController> logger)
         {
             _appSetting = appSettings.Value;
+            _setting = setting;
             _userSignUp = userSignUp;
             _user = user;
             _emailSender = new EmailSender(appSettings);
@@ -260,7 +263,7 @@ namespace ChatBot.Controllers
                 
 
                 _logger.LogInformation("OTP verification successful and JWT tokens issued for email ID: {EmailId}", modelVM?.EmailId);
-
+                token.Courses = _setting.GetCourses();
                 return Ok(new ApiResponseVM<AuthenticationModel>
                 {
                     Success = true,

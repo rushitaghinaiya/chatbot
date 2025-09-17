@@ -11,6 +11,7 @@ namespace ChatBot.Models.Services
         VoiceAccessibilitySettings? GetVoiceSettings();
         bool UpdateVoiceSettings(VoiceAccessibilitySettings model);
         SystemLimits? GetSystemLimits();
+        List<Course>? GetCourses();
         bool UpdateSystemLimits(SystemLimits model);
     }
 }
