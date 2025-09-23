@@ -11,6 +11,7 @@ namespace ChatBot.Models.Services
         (bool exists, UserDetailsExcel user) VerifyEmail(string email);
         (bool exists, UserDetailsExcel user) VerifyEmail(string email, UserDetailsExcel newUser = null);
         Task<int> SaveOTP(OTPVM otpVM);
+        void SyncUsers(string uploadedFilePath);
         OTPVM GetOTP(OTPVM otpVM);
         int SaveLoginLog(LoginLogVM loginLog);
         int SaveAdminLoginLog(AdminLoginLog loginLog);

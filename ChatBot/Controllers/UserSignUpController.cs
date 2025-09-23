@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using Model.ViewModels;
 using Newtonsoft.Json;
 using VRMDBCommon2023;
+
 using Users = ChatBot.Models.ViewModels.Users;
 
 namespace ChatBot.Controllers
@@ -562,6 +563,34 @@ namespace ChatBot.Controllers
             }
         }
 
+        [HttpPost]
+        public IActionResult SyncUsersFromExcel(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("No file uploaded.");
+
+            var tempPath = Path.Combine(Path.GetTempPath(), file.FileName);
+
+            using (var stream = new FileStream(tempPath, FileMode.Create))
+            {
+                file.CopyTo(stream);
+            }
+
+            try
+            {
+                _userSignUp.SyncUsers(tempPath);
+                return Ok("Users synced successfully.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error syncing users: {ex.Message}");
+            }
+            finally
+            {
+                if (System.IO.File.Exists(tempPath))
+                    System.IO.File.Delete(tempPath);
+            }
+        }
 
 
         /// <summary>

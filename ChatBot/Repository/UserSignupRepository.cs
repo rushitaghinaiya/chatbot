@@ -357,7 +357,51 @@ namespace ChatBot.Repository
         }
 
 
-        
+        public void SyncUsers(string uploadedFilePath)
+        {
+            if (!File.Exists(_appSettings.UserFilePath))
+                throw new FileNotFoundException("Excel1 not found!", _appSettings.UserFilePath);
+
+            if (!File.Exists(uploadedFilePath))
+                throw new FileNotFoundException("Excel2 not found!", uploadedFilePath);
+
+            using var workbook1 = new XLWorkbook(_appSettings.UserFilePath); // Excel1
+            var worksheet1 = workbook1.Worksheets.First();
+
+            using var workbook2 = new XLWorkbook(uploadedFilePath); // Excel2
+            var worksheet2 = workbook2.Worksheets.First();
+
+            // Build a set of existing emails in Excel1
+            var existingEmails = worksheet1.RowsUsed()
+                                           .Skip(1) // skip header
+                                           .Select(r => r.Cell(4).GetString().Trim().ToLower())
+                                           .ToHashSet();
+
+            // Iterate over users in Excel2
+            foreach (var row in worksheet2.RowsUsed().Skip(1)) // skip header row
+            {
+                var email = row.Cell(4).GetString().Trim().ToLower();
+
+                // If user not found in Excel1, add them
+                if (!existingEmails.Contains(email))
+                {
+                    var lastRow = worksheet1.LastRowUsed()?.RowNumber() ?? 1;
+                    var newRow = worksheet1.Row(lastRow + 1);
+
+                    newRow.Cell(1).Value = row.Cell(1).GetString().Trim(); // DisplayName
+                    newRow.Cell(2).Value = row.Cell(2).GetString().Trim(); // FirstName
+                    newRow.Cell(3).Value = row.Cell(3).GetString().Trim(); // LastName
+                    newRow.Cell(4).Value = row.Cell(4).GetString().Trim(); // LoginEmail
+                    newRow.Cell(5).Value = row.Cell(5).GetString().Trim(); // Phone
+                    newRow.Cell(6).Value = row.Cell(6).GetString().Trim(); // Courses
+                    newRow.Cell(7).Value = row.Cell(7).GetBoolean(); // IsMembership
+                }
+            }
+
+            // Save changes back to Excel1
+            workbook1.Save();
+        }
+
 
     }
 }
