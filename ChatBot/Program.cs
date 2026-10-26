@@ -22,6 +22,10 @@ Log.Logger = new LoggerConfiguration()
 
 // Add services to the container
 builder.Services.AddHttpClient<MedlinePlusController>();
+builder.Services.AddHttpClient("GoogleTranslate");
+builder.Services.Configure<GoogleTranslateOptions>(
+    builder.Configuration.GetSection(GoogleTranslateOptions.SectionName));
+builder.Services.AddTransient<ITranslationService, TranslationService>();
 
 builder.Services.AddTransient<IUserSignUp>(s => new UserSignupRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IQuestion>(s => new QuestionRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));

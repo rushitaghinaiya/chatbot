@@ -141,6 +141,7 @@ namespace ChatBot.Controllers
             [FromQuery] string question,
             [FromQuery] string? kbName = null,
             [FromQuery] string? language = null,
+            [FromQuery] List<string>? category = null,
             [FromQuery] string? documentCategory = null,
             [FromQuery] string? dbType = null)
         {
@@ -168,17 +169,25 @@ namespace ChatBot.Controllers
             var finalKbName = kbName ?? _config.KbName;
             var finalLanguage = language ?? _config.Language;
             var finalDbType = dbType ?? _config.DbType;
+            var finalCategories = (category != null && category.Count > 0)
+                ? category
+                : _config.DocumentCategories;
 
             var pythonUrl = $"{_config.PythonApiBaseUrl}/api/v1/medicare-knowledgebase/file-qna/{companyCode}";
             pythonUrl += $"?question={Uri.EscapeDataString(question)}";
             pythonUrl += $"&kb_name={Uri.EscapeDataString(finalKbName)}";
             pythonUrl += $"&language={Uri.EscapeDataString(finalLanguage)}";
+            pythonUrl += $"&db_type={Uri.EscapeDataString(finalDbType)}";
+
+            foreach (var cat in finalCategories)
+            {
+                pythonUrl += $"&category={Uri.EscapeDataString(cat)}";
+            }
 
             if (!string.IsNullOrEmpty(documentCategory))
             {
                 pythonUrl += $"&document_category={Uri.EscapeDataString(documentCategory)}";
             }
-            pythonUrl += $"&db_type={Uri.EscapeDataString(finalDbType)}";
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_config.TimeoutSeconds));
 
