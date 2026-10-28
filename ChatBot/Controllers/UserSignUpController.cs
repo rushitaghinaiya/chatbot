@@ -109,23 +109,18 @@ namespace ChatBot.Controllers
                 }
 
                 // Remove sensitive info before returning
-               
-                var token = _jwtTokenService.Authenticate(users1);
                 users1.Mobile = MaskMobileNumber(users1.Mobile);
-                // Prepare login response with tokens
+                // Tokens are issued only after OTP verification (VerifyMobileOtp)
                 var loginResponse = new LoginResponse
                 {
                     User = users1,
-                    AccessToken = token.Token,
-                    RefreshToken = token.RefreshToken,
-                    TokenExpiration = token.RefreshTokenExpiration,
                     TokenType = "Bearer"
                 };
                 return Ok(new ApiResponseVM<LoginResponse>
                 {
                     Success = true,
                     Data = loginResponse,
-                    Message = "User signup successful"
+                    Message = "User signup successful. Please verify your mobile number with the OTP sent."
                 });
             }
             catch (TaskCanceledException)
@@ -246,7 +241,7 @@ namespace ChatBot.Controllers
                 };
 
                 _userSignUp.SaveLoginLog(loginLogVM);
-               // var token = _jwtTokenService.Authenticate(modelVM.UserId);
+                var token = _jwtTokenService.Authenticate(user);
                 // Prepare login response with tokens
                 var loginResponse = new LoginResponse
                 {
@@ -261,9 +256,9 @@ namespace ChatBot.Controllers
                         CreatedAt = user.CreatedAt,
                         UpdatedAt = DateTime.UtcNow
                     },
-                    //AccessToken = token.Token,
-                    //RefreshToken = token.RefreshToken,
-                    //TokenExpiration = token.RefreshTokenExpiration,
+                    AccessToken = token.Token,
+                    RefreshToken = token.RefreshToken,
+                    TokenExpiration = token.RefreshTokenExpiration,
                     TokenType = "Bearer"
                 };
 

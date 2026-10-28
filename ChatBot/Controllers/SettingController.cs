@@ -31,6 +31,7 @@ namespace ChatBot.Controllers
             _logger = logger;
             _userSignUp = userSignUp;
         }
+        [AllowAnonymous]
         [HttpGet("get_languages")]
         public async Task<IActionResult> GetLanguage()
         {
