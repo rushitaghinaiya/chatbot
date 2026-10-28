@@ -10,7 +10,6 @@ using VRMDBCommon2023;
 using Serilog;
 using ChatBot.Middleware;
 using System.Text;
-using ChatBot.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
@@ -50,6 +49,9 @@ builder.Services.Configure<AppSettings>(
     builder.Configuration.GetSection(AppSettings.SectionName));
 
 var jwtConfig = builder.Configuration.GetSection(AppSettings.SectionName).Get<AppSettings>();
+
+if (string.IsNullOrWhiteSpace(jwtConfig?.Key))
+    throw new InvalidOperationException("JWT signing key (Jwt:Key) is missing or empty. Set it via an environment variable or secrets manager.");
 
 // Add JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -150,7 +152,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("allowCors", policy =>
     {
-        policy.WithOrigins("https://chat.icare.life/app/", "https://chat.icare.life/admin/")
+        policy.WithOrigins("https://chat.icare.life")
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
@@ -161,15 +163,14 @@ builder.Host.UseSerilog();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
-// Always enable Swagger
-app.UseSwagger();
-app.UseSwaggerUI();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.UseHttpsRedirection();
 app.UseCors("allowCors");
-app.UseMiddleware<SessionTrackingMiddleware>();
-app.UseMiddleware<RequestLoggingMiddleware>();
-
 
 // Add Authentication and Authorization middleware
 app.UseAuthentication();
