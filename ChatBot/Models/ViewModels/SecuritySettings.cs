@@ -29,5 +29,18 @@
         public string? UpdatedBy { get; set; }
         public DateTime UpdatedOn { get; set; }
     }
+    public class Course
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public int Duration { get; set; }   // You can change to string if duration is in text format like "3 months"
+        public decimal Price { get; set; }
+        public string VideoRuntime { get; set; }   // Keeping as string (e.g. "02:30:00"), can use TimeSpan if always HH:MM:SS
+        public int LanguageId { get; set; }
+        public string CourseDetails { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
 
 }

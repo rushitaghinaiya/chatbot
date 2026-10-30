@@ -24,7 +24,7 @@ namespace ChatBot.Repository
                 try
                 {
                     var questions = connection.QueryAsync<Language>(
-                        "SELECT Id, languageName,language_code ,IsActive FROM language"
+                        "SELECT Id, languageName,label,value,icon,language_code ,IsActive FROM language where IsActive=1"
                     ).Result.ToList();
 
                     return questions;
@@ -160,6 +160,24 @@ namespace ChatBot.Repository
                     var setting = connection.QueryFirstOrDefaultAsync<SystemLimits>(
                         "SELECT * FROM SystemLimits"
                     ).Result;
+
+                    return setting;
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }
+        }
+        public List<Course>? GetCourses()
+        {
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    var setting = connection.QueryAsync<Course>(
+                        "SELECT * FROM course"
+                    ).Result.ToList();
 
                     return setting;
                 }

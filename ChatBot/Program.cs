@@ -26,14 +26,14 @@ builder.Services.Configure<GoogleTranslateOptions>(
     builder.Configuration.GetSection(GoogleTranslateOptions.SectionName));
 builder.Services.AddTransient<ITranslationService, TranslationService>();
 
-builder.Services.AddTransient<IUserSignUp>(s => new UserSignupRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
+builder.Services.AddTransient<IUserSignUp>(s => new UserSignupRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString(), configuration.GetSection("ApplicationSettings").Get<AppSettings>()));
 builder.Services.AddTransient<IQuestion>(s => new QuestionRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IAdmin>(s => new AdminRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IApiLogService>(s => new ApiLogRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<IMedicine>(s => new MedicineRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 builder.Services.AddTransient<ISetting>(s => new SettingRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
-builder.Services.AddTransient<IUser>(s => new UserRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
-builder.Services.AddTransient<IUserMgmtService>(s => new UserMgmtRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
+builder.Services.AddTransient<IUser>(s => new UserRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString(), configuration.GetSection("ApplicationSettings").Get<AppSettings>()));
+builder.Services.AddTransient<IUserMgmtService>(s => new UserMgmtRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString(),configuration.GetSection("ApplicationSettings").Get<AppSettings>()));
 builder.Services.AddTransient<IExceptionLog>(s => new ExceptionLogRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
 
 // Register JWT Token Service
@@ -152,7 +152,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("allowCors", policy =>
     {
-        policy.WithOrigins("https://chat.icare.life", "http://localhost:4200", "https://localhost:4200")
+        policy.WithOrigins("https://chat.icare.life", "https://chat.icare.life/app/", "https://chat.icare.life/admin/", "http://localhost:4200", "https://localhost:4200")
               .AllowAnyMethod()
               .AllowAnyHeader();
     });

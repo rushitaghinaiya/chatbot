@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using System.Text;
 using System.Text.Json;
 
 namespace ChatBot.Controllers
@@ -17,6 +18,7 @@ namespace ChatBot.Controllers
     public class MedicareKnowledgeBaseController : ControllerBase
     {
         private readonly HttpClient _httpClient;
+
         private readonly MedicareConfig _config;
         private readonly ILogger<MedicareKnowledgeBaseController> _logger;
         private readonly JsonSerializerOptions _jsonOptions;
@@ -131,24 +133,25 @@ namespace ChatBot.Controllers
         // Handles Q&A requests for Medicare knowledge base files.
         // Validates input and proxies the question to the Python API.
         // Returns the answer from the knowledge base.
-
-        [HttpPost("file-qna/{companyCode}")]
+        [AllowAnonymous]
+        [HttpPost("file-qna")]
         [ProducesResponseType(typeof(ApiResponseVM<QnAResponse>), 200)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
         public async Task<IActionResult> GetAnswer(
-            [FromRoute] string companyCode,
-            [FromQuery] string question,
+            [FromRoute] string? companyCode=null,
+            [FromQuery] string? question = null,
             [FromQuery] string? kbName = null,
             [FromQuery] string? language = null,
+            [FromQuery] string? userType = null,
             [FromQuery] List<string>? category = null,
             [FromQuery] string? documentCategory = null,
             [FromQuery] string? dbType = null)
         {
-            _logger.LogInformation("Received Q&A request for company: {CompanyCode}, Question: {Question}",
+                    _logger.LogInformation("Received Q&A request for company: {CompanyCode}, Question: {Question}",
                 companyCode, question);
 
-            if (string.IsNullOrEmpty(companyCode) || companyCode != _config.CompanyCode)
+            if (string.IsNullOrEmpty( _config.CompanyCode))
             {
                 return BadRequest(new ApiResponseVM<object>
                 {
@@ -169,11 +172,12 @@ namespace ChatBot.Controllers
             var finalKbName = kbName ?? _config.KbName;
             var finalLanguage = language ?? _config.Language;
             var finalDbType = dbType ?? _config.DbType;
+            companyCode = companyCode ?? _config.CompanyCode;
             var finalCategories = (category != null && category.Count > 0)
                 ? category
                 : _config.DocumentCategories;
 
-            var pythonUrl = $"{_config.PythonApiBaseUrl}/api/v1/medicare-knowledgebase/file-qna/{companyCode}";
+            var pythonUrl = $"{_config.PythonApiBaseUrl}/api/v1/medicare-knowledgebase/file-qna/{_config.CompanyCode}";
             pythonUrl += $"?question={Uri.EscapeDataString(question)}";
             pythonUrl += $"&kb_name={Uri.EscapeDataString(finalKbName)}";
             pythonUrl += $"&language={Uri.EscapeDataString(finalLanguage)}";
@@ -184,9 +188,16 @@ namespace ChatBot.Controllers
                 pythonUrl += $"&category={Uri.EscapeDataString(cat)}";
             }
 
-            if (!string.IsNullOrEmpty(documentCategory))
+            //if (!string.IsNullOrEmpty(userType))
+            //{
+            //    pythonUrl += $"&userType={Uri.EscapeDataString(userType)}";
+            //}
+            if (documentCategory != null && documentCategory.Any())
             {
-                pythonUrl += $"&document_category={Uri.EscapeDataString(documentCategory)}";
+                foreach (var category in documentCategory)
+                {
+                    pythonUrl += $"&category={Uri.EscapeDataString(category)}";
+                }
             }
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_config.TimeoutSeconds));
@@ -211,18 +222,18 @@ namespace ChatBot.Controllers
             if (string.IsNullOrWhiteSpace(responseContent) || responseContent.Trim() == "{}")
             {
                 _logger.LogWarning("Python API returned empty response.");
-                return Ok(new ApiResponseVM<QnAResponse>
+                return Ok(new ApiResponseVM<QnaResponse>
                 {
                     Success = false,
                     Message = "Empty response from Python API"
                 });
             }
 
-            var pythonResponse = JsonSerializer.Deserialize<QnAResponse>(responseContent, _jsonOptions);
-            if (pythonResponse == null || string.IsNullOrWhiteSpace(pythonResponse.Answer))
+            var pythonResponse = JsonSerializer.Deserialize<QnaResponse>(responseContent, _jsonOptions);
+            if (pythonResponse == null)
             {
                 _logger.LogWarning("Deserialization returned null or missing fields.");
-                return Ok(new ApiResponseVM<QnAResponse>
+                return Ok(new ApiResponseVM<QnaResponse>
                 {
                     Success = false,
                     Message = "Invalid or incomplete response from Python API"
@@ -230,7 +241,7 @@ namespace ChatBot.Controllers
             }
 
             _logger.LogInformation("Python API Q&A call successful.");
-            return Ok(new ApiResponseVM<QnAResponse>
+            return Ok(new ApiResponseVM<QnaResponse>
             {
                 Success = true,
                 Data = pythonResponse,
@@ -268,17 +279,17 @@ namespace ChatBot.Controllers
         // Gets the list of knowledge bases for a company.
         // Validates input and proxies the request to the Python API.
         // Returns the list of available knowledge bases.
-        [HttpGet("kb-list/{companyCode}")]
+        [HttpGet("kb-list")]
         [ProducesResponseType(typeof(ApiResponseVM<KnowledgeBaseListResponse>), 200)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
         [ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
         public async Task<IActionResult> GetKnowledgeBaseList(
-            [FromRoute] string companyCode,
+            [FromQuery] string? companyCode=null,
             [FromQuery] string? dbType = null)
         {
             _logger.LogInformation("Received knowledge base list request for company: {CompanyCode}", companyCode);
 
-            if (string.IsNullOrEmpty(companyCode) || companyCode != _config.CompanyCode)
+            if (string.IsNullOrEmpty( _config.CompanyCode))
             {
                 return BadRequest(new ApiResponseVM<object>
                 {
@@ -289,7 +300,7 @@ namespace ChatBot.Controllers
 
             var finalDbType = dbType ?? _config.DbType;
 
-            var pythonUrl = $"{_config.PythonApiBaseUrl}/api/v1/medicare-knowledgebase/kb-list/{companyCode}";
+            var pythonUrl = $"{_config.PythonApiBaseUrl}/api/v1/medicare-knowledgebase/kb-list/{_config.CompanyCode}";
             pythonUrl += $"?db_type={Uri.EscapeDataString(finalDbType)}";
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_config.TimeoutSeconds));
@@ -508,6 +519,94 @@ namespace ChatBot.Controllers
                 });
             }
         }
+
+        [AllowAnonymous]
+        [HttpPost("faq-qna/{companyCode}")]
+        [ProducesResponseType(typeof(ApiResponseVM<object>), 200)]
+        [ProducesResponseType(typeof(ApiResponseVM<object>), 400)]
+        [ProducesResponseType(typeof(ApiResponseVM<object>), 500)]
+        public async Task<IActionResult> AskFileQna(
+    [FromRoute] string companyCode,
+    [FromBody] FileQnaRequest request)
+        {
+            _logger.LogInformation("Received File QnA request for company: {CompanyCode}", companyCode);
+
+            // Validate company
+            if (string.IsNullOrEmpty(companyCode) || companyCode != _config.CompanyCode)
+            {
+                return BadRequest(new ApiResponseVM<object>
+                {
+                    Success = false,
+                    Message = $"Invalid company code. Expected: {_config.CompanyCode}"
+                });
+            }
+
+            // Validate required fields
+            if (string.IsNullOrEmpty(request.KbName) || string.IsNullOrEmpty(request.Language))
+            {
+                return BadRequest(new ApiResponseVM<object>
+                {
+                    Success = false,
+                    Message = "kb_name and language are required"
+                });
+            }
+
+            var finalDbType = string.IsNullOrWhiteSpace(request.DbType) ? _config.DbType : request.DbType;
+
+            // Prepare request for Python API
+            var pythonUrl = $"{_config.PythonApiBaseUrl}/api/v1/medicare-knowledgebase/file-qna/{companyCode}";
+
+            var payload = new
+            {
+                question = request.Question,
+                kb_name = request.KbName,
+                language = request.Language,
+                db_type = finalDbType
+            };
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_config.TimeoutSeconds));
+            var jsonContent = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+            _logger.LogInformation("Calling Python API: {PythonUrl}", pythonUrl);
+
+            var response = await _httpClient.PostAsync(pythonUrl, jsonContent, cts.Token);
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation("Python API file-qna call successful");
+
+                if (string.IsNullOrWhiteSpace(responseContent) || responseContent.Trim() == "{}")
+                {
+                    return Ok(new ApiResponseVM<object>
+                    {
+                        Success = false,
+                        Message = "Empty response from Python API"
+                    });
+                }
+
+                var pythonResponse = JsonSerializer.Deserialize<object>(responseContent, _jsonOptions);
+                return Ok(new ApiResponseVM<object>
+                {
+                    Success = true,
+                    Data = pythonResponse,
+                    Message = "Success"
+                });
+            }
+            else
+            {
+                _logger.LogError("Python API file-qna call failed. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, responseContent);
+
+                return BadRequest(new ApiResponseVM<object>
+                {
+                    Success = false,
+                    Message = $"Python API call failed with status {response.StatusCode}",
+                    Data = responseContent
+                });
+            }
+        }
+
 
     }
 }

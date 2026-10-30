@@ -313,7 +313,7 @@ namespace ChatBot.Controllers
             });
         }
 
-
+        [AllowAnonymous]
         [HttpGet("get_queries_today")]
         public async Task<IActionResult> GetTodaysQueryStats()
         {
@@ -357,8 +357,8 @@ namespace ChatBot.Controllers
         [HttpGet("get_user_list")]
         public IActionResult GetChatbotUsage()
         {
-            var data = _user.GetUserChatbotStats();
-            return Ok(new ApiResponseVM<List<UserChatbotStatsDto>>
+            var data = _user.ReadExcel();
+            return Ok(new ApiResponseVM<List<UserDetailsExcel>>
             {
                 Success = true,
                 Data = data,
@@ -394,7 +394,7 @@ namespace ChatBot.Controllers
             var data = await _user.GetUserTypeDistributionAsync();
             return Ok(data);
         }
-
+        [AllowAnonymous]
         [HttpGet("get_average_metrics")]
         public async Task<IActionResult> GetAverageMetrics()
         {
@@ -419,6 +419,7 @@ namespace ChatBot.Controllers
             });
         }
 
+        [AllowAnonymous]
         [HttpPost("SaveUserSession")]
         public async Task<IActionResult> SaveUserSession(BotSessionDto botSession)
         {
@@ -428,7 +429,7 @@ namespace ChatBot.Controllers
             }
             BotSession session = new BotSession()
             {
-                UserId = botSession.UserId,
+                EmailId= botSession.EmailId,
                 StartTime = botSession.StartTime,
                 EndTime = botSession.EndTime,
                 TotalTimeSpent = botSession.TotalTimeSpent,
@@ -449,11 +450,11 @@ namespace ChatBot.Controllers
                 return StatusCode(500, "An error occurred while saving the session");
             }
         }
-
-            [HttpPost("SaveQueryHistory")]
+        [AllowAnonymous]
+        [HttpPost("SaveQueryHistory")]
         public async Task<IActionResult> SaveQueryHistory(QueryHistoryDto queryHistory)
         {
-            if (queryHistory.UserId == 0)
+            if (queryHistory.EmailId == null)
             {
                 return BadRequest("User Not Found");
             }

@@ -25,12 +25,12 @@ namespace ChatBot.Middleware
             }
 
             string token = authHeader.Substring("Bearer ".Length).Trim();
-            int? userId = null;
+            string? emailId = null;
 
             // Validate token and extract userId
-            if (ValidateToken(token, out string extractedUserId) && int.TryParse(extractedUserId, out int parsedUserId))
+            if (ValidateToken(token, out string extractedUserId))
             {
-                userId = parsedUserId;
+                emailId = extractedUserId;
             }
             else
             {
@@ -41,20 +41,20 @@ namespace ChatBot.Middleware
             string ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
             string agent = context.Request.Headers["User-Agent"];
 
-            string sessionKey = userId != null
-                ? $"user-{userId}"
+            string sessionKey = emailId != null
+                ? $"user-{emailId}"
                 : $"ip-{ip}-agent-{agent}".GetHashCode().ToString();
 
-            await sessionService.UpdateSessionAsync(userId, sessionKey, ip, agent);
+            await sessionService.UpdateSessionAsync(emailId, sessionKey, ip, agent);
 
             await _next(context);
         }
 
 
 
-        private bool ValidateToken(string token, out string userId)
+        private bool ValidateToken(string token, out string emailId)
         {
-            userId = null; // default
+            emailId = null; // default
 
             var jwtToken = ParseJwtToken(token);
             if (jwtToken == null)
@@ -71,10 +71,10 @@ namespace ChatBot.Middleware
                 return false;
 
             // ✅ Get userId claim
-            var userIdClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "UserId" || c.Type == ClaimTypes.NameIdentifier);
+            var userIdClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "EmailId" || c.Type == ClaimTypes.NameIdentifier);
             if (userIdClaim != null)
             {
-                userId = userIdClaim.Value;
+                emailId = userIdClaim.Value;
             }
 
             return true;

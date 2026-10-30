@@ -112,6 +112,7 @@ namespace ChatBot.Controllers
 
         // --- System Limits ---
         [HttpGet("get_system_limits")]
+        [AllowAnonymous]
         public IActionResult GetSystemLimits()
         {
             var result = _setting.GetSystemLimits();
@@ -120,6 +121,20 @@ namespace ChatBot.Controllers
                 Success = true,
                 Data = result,
                 Message = "Data fetch successfully.",
+            });
+        }
+
+        // --- Courses ---
+        [HttpGet("get_courses")]
+        [AllowAnonymous]
+        public IActionResult GetCourses()
+        {
+            var result = _setting.GetCourses();
+            return Ok(new ApiResponseVM<List<Course>>
+            {
+                Success = true,
+                Data = result,
+                Message = "Courses fetch successfully.",
             });
         }
 

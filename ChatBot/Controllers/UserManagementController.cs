@@ -2,6 +2,7 @@
 using ChatBot.Models.Services;
 using ChatBot.Models.ViewModels;
 using ChatBot.Repository;
+using DocumentFormat.OpenXml.Spreadsheet;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
@@ -20,16 +21,19 @@ namespace ChatBot.Controllers
         private readonly AppSettings _appSetting;
         private readonly IUserSignUp _userSignup;
         private readonly IUserMgmtService _userMgmt;
+        private readonly IUser _user;
         private readonly ILogger<QuestionController> _logger;
         public UserManagementController(
           IUserMgmtService userMgmt,
           IUserSignUp userSignup,
+          IUser user,
           IOptions<AppSettings> appSettings,
           ILogger<QuestionController> logger)
         {
             _appSetting = appSettings.Value;
             _userMgmt = userMgmt;
             _userSignup = userSignup;
+            _user=user;
             _logger = logger;
         }
 
@@ -46,6 +50,7 @@ namespace ChatBot.Controllers
         [HttpGet("get_free_users_overview")]
         public async Task<ActionResult<FreeUsersOverviewDto>> GetFreeUsersOverview()
         {
+
             var data = await _userMgmt.GetFreeUsersOverviewAsync();
             return Ok(new ApiResponseVM<FreeUsersOverviewDto>
             {
@@ -82,7 +87,7 @@ namespace ChatBot.Controllers
         public async Task<IActionResult> GetFreeUserDetailsAsync()
         {
             var result = await _userMgmt.GetFreeUserDetailsAsync();
-            return Ok(new ApiResponseVM<List<FreeUserDetail>>
+            return Ok(new ApiResponseVM<List<UserDetail>>
             {
                 Success = true,
                 Data = result,
@@ -145,6 +150,46 @@ namespace ChatBot.Controllers
         }
 
 
+        /// <summary>
+        /// Retrieves an overview of paid users including:
+        /// - Total number of paid users,
+        /// - Number of active paid users (who have at least one session),
+        /// - Number of inactive paid users (who never logged in),
+        /// - Number of high-usage paid users (who have used 80% or more of their query limit).
+        /// </summary>
+        /// <returns>
+        /// A <see cref="PaidUsersOverviewDto"/> containing aggregated statistics for free users.
+        /// </returns>
+        [HttpGet("get_paid_users_overview")]
+        public async Task<ActionResult<PaidUsersOverviewDto>> GetPaidUsersOverview()
+        {
+            var data = await _userMgmt.GetPaidUsersOverviewAsync();
+            return Ok(new ApiResponseVM<PaidUsersOverviewDto>
+            {
+                Success = true,
+                Data = data,
+                Message = "Data fetch successfully"
+            });
+        }
 
+
+        /// <summary>
+        /// Gets details of all paid users including their communication settings.
+        /// </summary>
+        /// <returns>
+        /// Returns a list of paid user details including flags like email, SMS, WhatsApp enable status.
+        /// </returns>
+        /// <response code="200">Returns the list of paid users with their communication preferences.</response>
+        [HttpGet("get_paid_user_details")]
+        public async Task<IActionResult> GetPaidUserDetailsAsync()
+        {
+            var result = await _userMgmt.GetPaidUserDetailsAsync();
+            return Ok(new ApiResponseVM<List<UserDetail>>
+            {
+                Success = true,
+                Data = result,
+                Message = "Data fetch successfully"
+            });
+        }
     }
 }
