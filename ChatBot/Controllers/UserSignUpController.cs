@@ -670,7 +670,8 @@ namespace ChatBot.Controllers
                 var otpSaved = await _userSignUp.SaveOTP(modelVM);
                 if (otpSaved > 0)
                 {
-                    _ = _emailSender.SendOtpEmail(users, modelVM.OtpNumber);
+                    // Await so a send failure (Mailgun/MSG91/SMTP) reaches the catch below instead of being lost
+                    await _emailSender.SendOtpEmail(users, modelVM.OtpNumber);
                     _logger.LogInformation("OTP sent successfully to email: {Email}", users.LoginEmail);
                     return true;
                 }

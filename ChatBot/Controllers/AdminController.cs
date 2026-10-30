@@ -554,7 +554,8 @@ namespace ChatBot.Controllers
                     UserDetailsExcel userDetails=new UserDetailsExcel();
                     userDetails.LoginEmail=users.Email;
 
-                    _ = _emailSender.SendOtpEmail(userDetails, modelVM.OtpNumber);
+                    // Await so a send failure (Mailgun/MSG91/SMTP) reaches the catch below instead of being lost
+                    await _emailSender.SendOtpEmail(userDetails, modelVM.OtpNumber);
                     _logger.LogInformation("OTP sent successfully to email: {Email}", users.Email);
                     return true;
                 }

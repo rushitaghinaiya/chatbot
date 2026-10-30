@@ -47,6 +47,14 @@ namespace ChatBot.Models.Common
 
         public string SMTPUseSSL { get; set; } = string.Empty;
 
+        // MSG91 email (https://control.msg91.com/api/v5/email/send)
+        public bool IsMsg91 { get; set; }
+        public string Msg91AuthKey { get; set; } = string.Empty;
+        public string Msg91Domain { get; set; } = string.Empty;       // domain registered and DKIM-verified in MSG91
+        public string Msg91FromEmail { get; set; } = string.Empty;    // falls back to SMTPFromAddress
+        public string Msg91FromName { get; set; } = string.Empty;     // falls back to SenderName
+        public string Msg91OtpTemplateId { get; set; } = string.Empty; // MSG91 template with {{name}}, {{otp}}, {{product_name}}
+
 
 
 
