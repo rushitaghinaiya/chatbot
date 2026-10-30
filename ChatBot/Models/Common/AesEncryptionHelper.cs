@@ -18,8 +18,7 @@ namespace ChatBot.Models.Common
             using (Aes aesAlg = Aes.Create())
             {
                 aesAlg.Key = Encoding.UTF8.GetBytes(Key);
-                // aesAlg.GenerateIV(); // Generate a random IV
-                aesAlg.IV = Iv;
+                aesAlg.GenerateIV();
 
                 ICryptoTransform encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV);
 

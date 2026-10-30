@@ -1,6 +1,7 @@
 using ChatBot.Models.Entities;
 using ChatBot.Models.Services;
 using Newtonsoft.Json;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -50,8 +51,9 @@ namespace ChatBot.Middleware
                         QueryString = queryString
                     };
 
-                    // Log the request details
-                    await apiLogService.LogAsync(log);
+                    // Log the request details — swallow DB errors so a missing/unavailable DB never blocks requests
+                    try { await apiLogService.LogAsync(log); }
+                    catch (Exception ex) { _logger.LogWarning("API log write failed (non-fatal): {Message}", ex.Message); }
                 }
 
                 _logger.LogInformation($"API Request: Name={apiName}, UserId={userId}, Time={requestTime}, Method={method}, Headers={headers}, QueryString={queryString}");
@@ -60,10 +62,8 @@ namespace ChatBot.Middleware
         }
         private string GetApiName(HttpContext context)
         {
-            // Split the endpoint path by '/'
             string[] parts = context.Request.Path.ToString().Replace("/v1/", "").Split('/');
-
-            return $"{parts[0]}/{parts[1]}";
+            return parts.Length >= 2 ? $"{parts[0]}/{parts[1]}" : parts[0];
         }
         private string GetUserIdFromToken(HttpContext context)
         {
@@ -120,9 +120,16 @@ namespace ChatBot.Middleware
             return body;
         }
 
+        private static readonly HashSet<string> _sensitiveHeaders = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Authorization", "Cookie", "Set-Cookie", "X-Api-Key", "X-Auth-Token"
+        };
+
         private static string GetHeaders(HttpRequest request)
         {
-            var headers = request.Headers.ToDictionary(header => header.Key, header => string.Join(",", header.Value));
+            var headers = request.Headers.ToDictionary(
+                header => header.Key,
+                header => _sensitiveHeaders.Contains(header.Key) ? "[REDACTED]" : string.Join(",", header.Value));
             return JsonConvert.SerializeObject(headers);
         }
     }

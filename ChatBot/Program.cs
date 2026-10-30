@@ -10,8 +10,6 @@ using VRMDBCommon2023;
 using Serilog;
 using ChatBot.Middleware;
 using System.Text;
-using ChatBot.Middleware;
-using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
@@ -23,6 +21,10 @@ Log.Logger = new LoggerConfiguration()
 
 // Add services to the container
 builder.Services.AddHttpClient<MedlinePlusController>();
+builder.Services.AddHttpClient("GoogleTranslate");
+builder.Services.Configure<GoogleTranslateOptions>(
+    builder.Configuration.GetSection(GoogleTranslateOptions.SectionName));
+builder.Services.AddTransient<ITranslationService, TranslationService>();
 
 builder.Services.AddTransient<IUserSignUp>(s => new UserSignupRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString(), configuration.GetSection("ApplicationSettings").Get<AppSettings>()));
 builder.Services.AddTransient<IQuestion>(s => new QuestionRepository(configuration["ConnectionStrings:ChatbotDB"].ReturnString()));
@@ -47,6 +49,9 @@ builder.Services.Configure<AppSettings>(
     builder.Configuration.GetSection(AppSettings.SectionName));
 
 var jwtConfig = builder.Configuration.GetSection(AppSettings.SectionName).Get<AppSettings>();
+
+if (string.IsNullOrWhiteSpace(jwtConfig?.Key))
+    throw new InvalidOperationException("JWT signing key (Jwt:Key) is missing or empty. Set it via an environment variable or secrets manager.");
 
 // Add JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -147,7 +152,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("allowCors", policy =>
     {
-        policy.WithOrigins("https://chat.icare.life/app/", "https://chat.icare.life/admin/", "http://localhost:4200")
+        policy.WithOrigins("https://chat.icare.life", "https://chat.icare.life/app/", "https://chat.icare.life/admin/", "http://localhost:4200", "https://localhost:4200")
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
@@ -158,15 +163,14 @@ builder.Host.UseSerilog();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
-// Always enable Swagger
-app.UseSwagger();
-app.UseSwaggerUI();
+if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("EnableSwagger"))
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.UseHttpsRedirection();
 app.UseCors("allowCors");
-app.UseMiddleware<SessionTrackingMiddleware>();
-app.UseMiddleware<RequestLoggingMiddleware>();
-
 
 // Add Authentication and Authorization middleware
 app.UseAuthentication();

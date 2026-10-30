@@ -84,15 +84,17 @@ namespace ChatBot.Middleware
                     return;
                 }
                 // Token is invalid or expired
-                //_httpContextAccessor.HttpContext.Session.SetString("Token",authenticationModel.Token);
-                //context.Result = new JsonResult(
-                //   new
-                //   {
-                //       statusMessage = authenticationModel.Token,
-                //       userId = 0,
-                //       IsSuccess = false,
-                //       statusCode = (int)HttpStatusCode.Unauthorized
-                //   });
+                context.Result = new JsonResult(
+                   new
+                   {
+                       statusMessage = "Token expired or invalid. Please login again.",
+                       userId = 0,
+                       IsSuccess = false,
+                       statusCode = (int)HttpStatusCode.Unauthorized
+                   })
+                {
+                    StatusCode = (int)HttpStatusCode.Unauthorized
+                };
                 return;
             }
 
